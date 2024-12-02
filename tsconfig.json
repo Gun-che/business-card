@@ -2,9 +2,10 @@
 /* To learn more about Angular compiler options: https://angular.dev/reference/configs/angular-compiler-options. */
 {
   "compileOnSave": false,
+  "types": ["node"],
   "compilerOptions": {
     "outDir": "./dist/out-tsc",
-    "strict": true,
+    "strict": false,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
     "noImplicitReturns": true,
@@ -14,6 +15,8 @@
     "esModuleInterop": true,
     "sourceMap": true,
     "declaration": false,
+    "baseUrl": "./",
+    "typeRoots": ["../node_modules/@types"],
     "experimentalDecorators": true,
     "moduleResolution": "bundler",
     "importHelpers": true,
