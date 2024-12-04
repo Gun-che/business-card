@@ -1,4 +1,25 @@
+@use './assets/styles/mixins' as *;
+
+@font-face {
+  font-family: 'DogicaPixel';
+  src: url('/assets/fonts/dogicapixel.ttf') format('truetype'), url('/assets/fonts/dogicapixel.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'DogicaPixel';
+  src: url('/assets/fonts/dogicapixelbold.ttf') format('truetype'), url('/assets/fonts/dogicapixelbold.otf') format('opentype');
+  font-weight: bold;
+  font-style: normal;
+}
+
+html {
+  font-size: 20px;
+}
+
 body {
+  @include light-text();
   margin: 0;
   cursor: none;
   height: 100vh;
@@ -7,4 +28,16 @@ body {
 
 * {
   box-sizing: border-box;
+}
+
+.regular-text {
+  @include regular-text();
+}
+
+.header-text {
+  @include header-text();
+}
+
+.accent-text {
+  @include accent-text();
 }

@@ -22,16 +22,12 @@ export class BackgroundComponent implements AfterViewInit {
     neonCursor({
       el: this.backgroundRef?.nativeElement,
       eventsEl: window.document.body,
-      shaderPoints: 16,
-      curvePoints: 80,
-      curveLerp: 0.95,
+      shaderPoints: 20,
+      curvePoints: 40,
+      curveLerp: 0.9,
       radius1: 10,
       radius2: 150,
-      velocityTreshold: 10,
-      sleepRadiusX: 100,
-      sleepRadiusY: 100,
-      sleepTimeCoefX: 0.0025,
-      sleepTimeCoefY: 0.0025
+      velocityTreshold: 200
     });
   }
 }

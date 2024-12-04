@@ -8,11 +8,7 @@ const defaultConfig = {
   curveLerp: 0.75,
   radius1: 3,
   radius2: 5,
-  velocityTreshold: 10,
-  sleepRadiusX: 150,
-  sleepRadiusY: 150,
-  sleepTimeCoefX: 0.0025,
-  sleepTimeCoefY: 0.0025
+  velocityTreshold: 10
 };
 
 export function neonCursor(params: NeonCursorParams) {
@@ -131,7 +127,7 @@ export function neonCursor(params: NeonCursorParams) {
 
             float glow = pow(uSize.y / dist, intensity);
             vec3 col = vec3(0.0);
-            col += 10.0 * vec3(smoothstep(uSize.x, 0.0, dist));
+            col += 2.0 * vec3(smoothstep(uSize.x, 0.0, dist));
             col += glow * uColor;
 
             // Tone mapping
@@ -163,25 +159,10 @@ export function neonCursor(params: NeonCursorParams) {
         spline.getPoint(i / (config.shaderPoints - 1), uPoints.value[i]);
       }
 
-      // if (!hover) {
-      //   const t1 = clock.time * config.sleepTimeCoefX;
-      //   const t2 = clock.time * config.sleepTimeCoefY;
-      //   const cos = Math.cos(t1);
-      //   const sin = Math.sin(t2);
-      //   const r1 = config.sleepRadiusX * wWidth / width;
-      //   const r2 = config.sleepRadiusY * wWidth / width;
-      //   const x = r1 * cos;
-      //   const y = r2 * sin;
-      //   spline.points[0].set(x, y);
-      //   uColor.value.r = 0.5 + 0.5 * Math.cos(clock.time * 0.0015);
-      //   uColor.value.g = 0;
-      //   uColor.value.b = 1 - uColor.value.r;
-      // } else {
       uColor.value.r = velocity.z;
       uColor.value.g = 0;
       uColor.value.b = 1 - velocity.z;
       velocity.multiplyScalar(0.95);
-      // }
     },
     onPointerMove({ nPosition, delta }) {
       hover = true;

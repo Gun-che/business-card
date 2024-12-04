@@ -1,0 +1,31 @@
+@use 'variables' as *;
+
+@mixin light-text {
+  font-family: 'DogicaPixel', sans-serif;
+  font-weight: normal;
+}
+
+@mixin strong-text {
+  font-family: 'DogicaPixel', sans-serif;
+  font-weight: bold;
+}
+
+@mixin regular-text {
+  @include light-text();
+  font-size: 1rem;
+  line-height: 1.4rem;
+  color: $text-color-primary;
+}
+
+@mixin header-text {
+  @include strong-text();
+  font-size: 1.2rem;
+  line-height: 1.6rem;
+  color: $text-color-accent;
+}
+
+@mixin accent-text {
+  @include strong-text();
+  font-size: 1rem;
+  color: $text-color-accent;
+}

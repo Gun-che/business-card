@@ -8,10 +8,6 @@ export interface NeonCursorParams {
   radius1?: number;
   radius2?: number;
   velocityTreshold?: number;
-  sleepRadiusX?: number;
-  sleepRadiusY?: number;
-  sleepTimeCoefX?: number;
-  sleepTimeCoefY?: number;
   width?: number;
   height?: number;
   resize?: boolean | 'window';

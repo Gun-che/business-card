@@ -1,0 +1,29 @@
+.shaking-text {
+  white-space: nowrap;
+}
+
+.shaking-text .letter {
+  display: inline-block;
+  transform: translateY(-2.5px);
+  animation: shake 2.4s infinite ease-in-out;
+}
+
+@for $i from 0 through 6 {
+  .shaking-text .letter:nth-child(7n - #{$i}) {
+    animation-delay: calc($i * 0.3s);
+  }
+}
+
+.letter {
+  display: inline-block;
+  min-width: 0.5rem;
+}
+
+@keyframes shake {
+  0% {
+    transform: translateY(-2.5px);
+  }
+  50% {
+    transform: translateY(2.5px);
+  }
+}
