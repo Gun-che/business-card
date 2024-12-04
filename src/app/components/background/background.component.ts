@@ -1,6 +1,6 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, ViewChild } from '@angular/core';
 import { Nullable } from 'src/app/types/nullable';
-import { neonCursor } from 'src/app/three/neon-cursor';
+import { drawBackground } from 'src/app/three/draw-background';
 
 
 @Component({
@@ -19,10 +19,10 @@ export class BackgroundComponent implements AfterViewInit {
   }
 
   private initBackground() {
-    neonCursor({
+    drawBackground({
       el: this.backgroundRef?.nativeElement,
       eventsEl: window.document.body,
-      shaderPoints: 20,
+      shaderPoints: 5,
       curvePoints: 40,
       curveLerp: 0.9,
       radius1: 10,
