@@ -11,4 +11,4 @@ import { NgOptimizedImage } from '@angular/common';
   styleUrl: './app.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class AppComponent  {}
+export class AppComponent {}
