@@ -31,7 +31,8 @@
 
     <div class="description">
       <div class="header-text description-header">
-        <shaking-text text="A little about me:"></shaking-text>
+        <shaking-text class="desktop" text="A little about me:"></shaking-text>
+        <shaking-text class="mobile" text="About me:"></shaking-text>
         <br/>
       </div>
       <br/>
@@ -56,7 +57,7 @@
         <br/>
         <br/>
         Press "
-        <shaking-text text="F" class="accent-text"></shaking-text>
+        <shaking-text (click)="toggleRap()" text="F" class="accent-text f"></shaking-text>
         " to pay respect!
       </div>
     </div>

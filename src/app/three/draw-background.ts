@@ -27,9 +27,8 @@ export function drawBackground(params: NeonCursorParams) {
   const uTime = { value: 0.0 };
   const uResolution = { value: new Vector3(window.innerWidth, window.innerHeight, 1.0) };
 
-  let material;
-  let plane;
-  let hover = false;
+  let material: ShaderMaterial;
+  let plane: Mesh;
 
   const threeConfig = {};
   const keys: (keyof NeonCursorParams)[] = ['el', 'eventsEl', 'canvas', 'width', 'height', 'resize'];
@@ -60,7 +59,7 @@ void main() {
         fragmentShader: `
 // https://www.shadertoy.com/view/wdy3DD
 // https://www.shadertoy.com/view/MlKcDD
-// https://www.shadertoy.com/view/XtSGWD
+// https://www.shadertoy.com/view/wdfGW4
 
 uniform vec2 uRatio;
 uniform vec2 uSize;
@@ -71,10 +70,8 @@ uniform float uTime;                // время
 
 varying vec2 vUv;
 
-const vec3 cameraDir = normalize(vec3(-2.0, -1.0, -2.0));
 const float cameraDist = 9.0;
-const float speed = 1.0;
-const float zoom = 3.5;
+const float speed = 0.3;
 
 const vec3 windowColorA = vec3(0.0, 0.0, 1.5);
 const vec3 windowColorB = vec3(0.5, 1.5, 2.0);
@@ -185,7 +182,16 @@ float noise(vec2 p) {
                    hash1(i + vec2(1.0, 1.0)), u.x), u.y);
 }
 
+vec3 getCameraDir() {
+  return normalize(vec3( -2.0, -1.0, (uPoints[0].y * 2.0) - 1.5) );
+}
+
+float getZoom() {
+  return (uPoints[0].x + 1.5) * 2.0;
+}
+
 vec4 castRay(vec3 eye, vec3 ray, vec2 center) {
+    vec3 cameraDir = getCameraDir();
     vec2 block = floor(eye.xy);
     vec3 ri = 1.0 / ray;
     vec3 rs = sign(ray);
@@ -360,6 +366,8 @@ vec3 addSign(vec3 color, vec3 pos, float side, vec2 id) {
 }
 
 vec3 renderScene() {
+    vec3 cameraDir = getCameraDir();
+    float zoom = getZoom();
     vec2 center = -speed * uTime * cameraDir.xy;
     vec3 eye = vec3(center, 0.0) - cameraDist * cameraDir;
 
@@ -461,7 +469,6 @@ void main() {
       velocity.multiplyScalar(0.95);
     },
     onPointerMove({ nPosition, delta }) {
-      hover = true;
       const x = (0.5 * nPosition.x) * uRatio.value.x;
       const y = (0.5 * nPosition.y) * uRatio.value.y;
       spline.points[0].set(x, y);
@@ -472,7 +479,7 @@ void main() {
       velocity.lerp(velocityTarget, 0.05);
     },
     onPointerLeave() {
-      hover = false;
+      // todo прокидывать в шейдер флаг и не отрисовывать кривую
     }
   });
 

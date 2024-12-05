@@ -10,22 +10,32 @@
   font-weight: bold;
 }
 
+@mixin noSelect {
+  user-select: none;
+}
+
 @mixin regular-text {
   @include light-text();
+  @include noSelect();
   font-size: 1rem;
   line-height: 1.4rem;
   color: $text-color-primary;
+  text-shadow: $text-shadow;
 }
 
 @mixin header-text {
   @include strong-text();
+  @include noSelect();
   font-size: 1.2rem;
   line-height: 1.6rem;
   color: $text-color-accent;
+  text-shadow: $text-shadow-accent;
 }
 
 @mixin accent-text {
   @include strong-text();
+  @include noSelect();
   font-size: 1rem;
   color: $text-color-accent;
+  text-shadow: $text-shadow-accent;
 }

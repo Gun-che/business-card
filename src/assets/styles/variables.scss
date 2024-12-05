@@ -1,2 +1,9 @@
 $text-color-primary: rgb(255, 100, 255);
 $text-color-accent: rgb(62, 211, 255);
+$text-color-interactive: rgb(253, 109, 43);
+$text-shadow-color: rgb(34, 0, 92);
+$text-shadow: 0 0 1rem $text-shadow-color,
+0 0 1rem $text-shadow-color,
+0.1rem 0.25rem 0.05rem $text-shadow-color;
+$text-shadow-accent-color: rgb(0, 19, 60);
+$text-shadow-accent: 0 0 1.5rem $text-shadow-accent-color, 0.1rem 0.25rem 0.05rem $text-shadow-accent-color;
