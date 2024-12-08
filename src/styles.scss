@@ -34,18 +34,35 @@ html {
 }
 
 
+@media screen and (max-height: 750px) {
+  html {
+    font-size: 12px;
+  }
+}
+
 @media screen and (max-width: 440px) {
   html {
     font-size: 12px;
   }
 }
 
+@media screen and (max-height: 650px) {
+  html {
+    font-size: 10px;
+  }
+}
+
+@media screen and (max-height: 550px) {
+  html {
+    font-size: 8px;
+  }
+}
 
 body {
   @include light-text();
   margin: 0;
   cursor: none;
-  height: 100vh;
+  height: calc(var(--inner-height) * 1px);
   width: 100vw;
   overflow: hidden;
 }

@@ -23,7 +23,7 @@ export class MusicService {
     this.player.volume = volume;
   }
 
-  public toggle(): void {
+  public togglePlay(): void {
     if (this.player.paused) {
       this.play();
       return;

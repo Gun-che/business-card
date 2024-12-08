@@ -5,7 +5,7 @@
 
 .container {
   display: flex;
-  height: 100vh;
+  height: calc(var(--inner-height) * 1px);
   overflow: hidden;
 }
 
@@ -19,7 +19,7 @@
 }
 
 .logo {
-  cursor: grab;
+  cursor: default;
   grid-column: span 2;
   max-width: 50rem;
   margin: 0 auto;
@@ -39,7 +39,7 @@
   transform: rotate(3deg);
   display: block;
   max-height: 3.5rem;
-  transition: 0.3s;
+  transition: transform 0.3s;
 
   &:hover {
     transform: rotate(3deg) scale(1.1);
@@ -79,6 +79,7 @@
 .footer {
   grid-column: span 2;
   text-align: center;
+  padding-bottom: 1rem;
 }
 
 .f {
@@ -93,6 +94,18 @@
 
 .mobile {
   display: none;
+}
+
+.loading {
+  margin: auto;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: flex;
+
+  .text {
+    margin: auto;
+  }
 }
 
 @media screen and (max-width: 500px) {
