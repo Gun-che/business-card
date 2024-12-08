@@ -4,7 +4,7 @@
 
 .shaking-text .letter {
   display: inline-block;
-  transform: translateY(-2.5px);
+  transform: translateY(-0.125rem);
   animation: shake 2.4s infinite ease-in-out;
 }
 
@@ -21,9 +21,9 @@
 
 @keyframes shake {
   0% {
-    transform: translateY(-2.5px);
+    transform: translateY(-0.125rem);
   }
   50% {
-    transform: translateY(2.5px);
+    transform: translateY(0.125rem);
   }
 }
