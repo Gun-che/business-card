@@ -50,9 +50,5 @@ export class BusinessCardComponent implements OnInit {
     img.onerror = () => {
       this.loading$.next(false);
     };
-
-    setTimeout(() => {
-      this.loading$.next(false);
-    }, 2000);
   }
 }
