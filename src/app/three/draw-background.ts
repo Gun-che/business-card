@@ -65,13 +65,13 @@ uniform vec2 uRatio;
 uniform vec2 uSize;
 uniform vec2 uPoints[SHADER_POINTS];
 uniform vec3 uColor;
-uniform vec3 uResolution;           // разрешение экрана
-uniform float uTime;                // время
+uniform vec3 uResolution;
+uniform float uTime;
 
 varying vec2 vUv;
 
 const float cameraDist = 9.0;
-const float speed = 0.3;
+const float speed = 0.2;
 
 const vec3 windowColorA = vec3(0.0, 0.0, 1.5);
 const vec3 windowColorB = vec3(0.5, 1.5, 2.0);
@@ -183,7 +183,7 @@ float noise(vec2 p) {
 }
 
 vec3 getCameraDir() {
-  return normalize(vec3( -2.0, -1.0, (uPoints[0].y * 2.0) - 1.5) );
+  return normalize(vec3( -2.0, -1.0, (uPoints[0].y * 2.0) - 1.7) );
 }
 
 float getZoom() {
