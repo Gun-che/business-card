@@ -1,14 +1,12 @@
-@let loading = loading$ | async ;
-
 <div class="container">
-  @if (loading) {
+  @if (loading()) {
     <div [@showHide] class="loading header-text">
       <shaking-text class="text" text="Loading..."></shaking-text>
     </div>
   } @else {
     <div [@showHide] class="main-grid">
-      <div class="logo">
-        <img [attr.src]="logoUrl" alt="Vanya Goncharov">
+      <div class="logo" (click)="glitch()">
+        <img [attr.src]="logoUrl" alt="Vanya Goncharov" draggable="false">
       </div>
 
       <div class="header-text main-header">
@@ -25,13 +23,13 @@
             <br/>
           </div>
           <a class="link" href="https://t.me/gun_ivan" target="_blank">
-            <img alt="telegram" src="assets/images/telegram.png">
+            <img alt="telegram" src="assets/images/telegram.webp">
           </a>
           <a class="link" href="https://www.instagram.com/guncheatnoir" target="_blank">
-            <img alt="instagram" src="assets/images/instagram.png">
+            <img alt="instagram" src="assets/images/instagram.webp">
           </a>
           <a class="link" href="https://github.com/Gun-che" target="_blank">
-            <img alt="github" src="assets/images/github.png">
+            <img alt="github" src="assets/images/github.webp">
           </a>
         </div>
       </div>

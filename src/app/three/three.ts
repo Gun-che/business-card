@@ -1,11 +1,18 @@
-import { AmbientLight, DirectionalLight, PerspectiveCamera, PointLight, Scene, WebGLRenderer } from 'three';
+import { OrthographicCamera, PerspectiveCamera, Scene, Vector2, WebGLRenderer } from 'three';
 import { pointer } from './pointer';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { ThreeModel } from 'src/app/types/three.model';
 import { ThreeParamsModel } from 'src/app/types/three-params.model';
 import { PointerOptionsModel } from 'src/app/types/pointer-options.model';
 
-export function three(params: ThreeParamsModel) {
+// Окно усреднения времени кадра для адаптивного разрешения
+const FRAME_SAMPLES = 30;
+// Если средний кадр дольше этого порога (~40fps) — понижаем разрешение
+const SLOW_FRAME_MS = 25;
+// Кадры длиннее этого (переключение вкладки, GC) не учитываем
+const MAX_FRAME_SAMPLE_MS = 200;
+const PIXEL_RATIO_STEP = 0.15;
+
+export function three(params: ThreeParamsModel): ThreeModel {
   const options: ThreeParamsModel = {
     el: null,
     canvas: null,
@@ -15,7 +22,9 @@ export function three(params: ThreeParamsModel) {
     resize: true,
     alpha: false,
     antialias: false,
-    orbitControls: false,
+    maxPixelRatio: 1,
+    minPixelRatio: 0.5,
+    adaptivePixelRatio: true,
     init() {
     },
     initCamera() {
@@ -36,26 +45,29 @@ export function three(params: ThreeParamsModel) {
     pointer: null,
     width: 0,
     height: 0,
-    wWidth: 0,
-    wHeight: 0,
+    pixelRatio: Math.min(window.devicePixelRatio || 1, options.maxPixelRatio),
+    drawingBufferSize: new Vector2(),
     clock: {
       startTime: 0,
       time: 0,
       elapsed: 0
     },
-    options
+    options,
+    dispose
   };
 
-  let render: any;
-
-  let cameraCtrl: any;
+  let render: (three: ThreeModel) => void;
+  let frameId = 0;
+  let frameSamples = 0;
+  let frameTimeSum = 0;
+  let resizeObserver: ResizeObserver | null = null;
 
   init();
 
   return three;
 
   function init() {
-    let canvas;
+    let canvas: HTMLCanvasElement;
     if (options.el) {
       canvas = document.createElement('canvas');
       options.el.appendChild(canvas);
@@ -67,41 +79,44 @@ export function three(params: ThreeParamsModel) {
 
     options.init?.(three);
 
-    three.renderer = new WebGLRenderer({ canvas, alpha: options.alpha, antialias: options.antialias });
+    three.renderer = new WebGLRenderer({
+      canvas,
+      alpha: options.alpha,
+      antialias: options.antialias,
+      depth: false,
+      stencil: false,
+      powerPreference: 'high-performance'
+    });
+    three.renderer.setPixelRatio(three.pixelRatio);
     options.initRenderer?.(three);
 
     three.camera = new PerspectiveCamera();
     three.camera.position.z = 50;
     options.initCamera?.(three);
 
-    if (options.orbitControls) {
-      cameraCtrl = new OrbitControls(three.camera, options.eventsEl ?? three.renderer.domElement);
-      cameraCtrl.enableDamping = true;
-      cameraCtrl.dampingFactor = 0.1;
-      if (typeof options.orbitControls === 'object') {
-        Object.keys(options.orbitControls).forEach(key => {
-          cameraCtrl[key] = options.orbitControls[key];
-        });
-      }
-    }
-
-    resize();
-    if (options.resize && !options.width && !options.height) {
-      window.addEventListener('resize', resize);
-    }
-
     three.scene = new Scene();
     options.initScene?.(three);
 
+    resize();
+    if (options.resize && !options.width && !options.height) {
+      if (options.resize === 'window') {
+        window.addEventListener('resize', resize);
+      } else {
+        // Следим за родителем: срабатывает и при смене высоты из-за панели браузера на мобилках
+        resizeObserver = new ResizeObserver(() => resize());
+        resizeObserver.observe(canvas.parentElement);
+      }
+    }
+
     initPointer();
 
-    render = options.render ? options.render : () => {
+    render = options.render ?? (() => {
       three.renderer.render(three.scene, three.camera);
-    };
+    });
 
-    requestAnimationFrame(timestamp => {
+    frameId = requestAnimationFrame(timestamp => {
       three.clock.startTime = three.clock.time = timestamp;
-      requestAnimationFrame(animate);
+      frameId = requestAnimationFrame(animate);
     });
   }
 
@@ -109,23 +124,46 @@ export function three(params: ThreeParamsModel) {
     const pointerOptions: PointerOptionsModel = {};
     if (options.onPointerEnter) { pointerOptions.onEnter = options.onPointerEnter; }
     if (options.onPointerMove) { pointerOptions.onMove = options.onPointerMove; }
-    if (options.onPointerMove) { pointerOptions.onLeave = options.onPointerLeave; }
+    if (options.onPointerLeave) { pointerOptions.onLeave = options.onPointerLeave; }
+    if (options.onPointerClick) { pointerOptions.onClick = options.onPointerClick; }
     if (Object.keys(pointerOptions).length > 0) {
       three.pointer = pointer({ domElement: options.eventsEl ?? (options.el ?? options.canvas), ...pointerOptions });
     }
   }
 
-  function animate(timestamp) {
+  function animate(timestamp: number) {
     const { clock } = three;
     clock.elapsed = timestamp - clock.time;
     clock.time = timestamp;
 
+    adaptPixelRatio(clock.elapsed);
+
     options.beforeRender(three);
-
-    if (cameraCtrl) cameraCtrl.update();
-
     render(three);
-    requestAnimationFrame(animate);
+    frameId = requestAnimationFrame(animate);
+  }
+
+  function adaptPixelRatio(elapsed: number) {
+    if (!options.adaptivePixelRatio || elapsed > MAX_FRAME_SAMPLE_MS) {
+      return;
+    }
+
+    frameTimeSum += elapsed;
+    frameSamples++;
+    if (frameSamples < FRAME_SAMPLES) {
+      return;
+    }
+
+    const average = frameTimeSum / frameSamples;
+    frameTimeSum = 0;
+    frameSamples = 0;
+
+    // Только понижаем: повышение обратно приводит к осцилляции качества
+    if (average > SLOW_FRAME_MS && three.pixelRatio > options.minPixelRatio) {
+      three.pixelRatio = Math.max(options.minPixelRatio, three.pixelRatio - PIXEL_RATIO_STEP);
+      three.renderer.setPixelRatio(three.pixelRatio);
+      resize();
+    }
   }
 
   function resize() {
@@ -141,67 +179,32 @@ export function three(params: ThreeParamsModel) {
       three.height = parent.clientHeight;
     }
 
+    if (!three.width || !three.height) {
+      return;
+    }
+
     three.renderer.setSize(three.width, three.height);
-    three.camera.aspect = three.width / three.height;
-    three.camera.updateProjectionMatrix();
+    three.renderer.getDrawingBufferSize(three.drawingBufferSize);
     if (three.camera instanceof PerspectiveCamera) {
-      const wsize = getCameraViewSize();
-      three.wWidth = wsize[0];
-      three.wHeight = wsize[1];
-    } else {
-      three.wWidth = three.camera.top - three.camera.bottom;
-      three.wHeight = three.camera.right - three.camera.left;
+      three.camera.aspect = three.width / three.height;
+    }
+    if (three.camera instanceof PerspectiveCamera || three.camera instanceof OrthographicCamera) {
+      three.camera.updateProjectionMatrix();
     }
     options.afterResize?.(three);
   }
 
-  function getCameraViewSize() {
-    const vFOV = (three.camera.fov * Math.PI) / 180;
-    const h = 2 * Math.tan(vFOV / 2) * Math.abs(three.camera.position.z);
-    const w = h * three.camera.aspect;
-    return [w, h];
-  }
-}
-
-export function commonConfig(params) {
-  const config = {};
-  const keys = ['el', 'canvas', 'eventsEl', 'width', 'height', 'resize', 'orbitControls'];
-  keys.forEach(key => {
-    if (params[key] !== undefined) config[key] = params[key];
-  });
-  return config;
-}
-
-export function initLights(scene, lightsConfig) {
-  const lights = [];
-  if (Array.isArray(lightsConfig) && lightsConfig.length > 0) {
-    let light;
-    lightsConfig.forEach(lightConfig => {
-      switch (lightConfig.type) {
-        case 'ambient':
-          light = new AmbientLight(...lightConfig.params);
-          break;
-        case 'directional':
-          light = new DirectionalLight(...lightConfig.params);
-          break;
-        case 'point':
-          light = new PointLight(...lightConfig.params);
-          break;
-        default:
-          console.error(`Unknown light type ${lightConfig.type}`);
-      }
-      if (light) {
-        if (typeof lightConfig.props === 'object') {
-          Object.keys(lightConfig.props).forEach(key => {
-            if (key === 'position') {
-              light.position.set(...lightConfig.props[key]);
-            } else light[key] = lightConfig.props[key];
-          });
-        }
-        scene.add(light);
-        lights.push(light);
-      }
+  function dispose() {
+    cancelAnimationFrame(frameId);
+    window.removeEventListener('resize', resize);
+    resizeObserver?.disconnect();
+    three.pointer?.removeListeners();
+    three.scene?.traverse(object => {
+      const mesh = object as { geometry?: { dispose(): void }, material?: { dispose(): void } };
+      mesh.geometry?.dispose();
+      mesh.material?.dispose();
     });
+    three.renderer.dispose();
+    three.renderer.domElement.remove();
   }
-  return lights;
 }

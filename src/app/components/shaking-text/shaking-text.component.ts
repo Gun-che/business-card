@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input, OnInit, ViewEncapsulation } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, ViewEncapsulation } from '@angular/core';
 
 @Component({
   selector: 'shaking-text',
@@ -9,11 +9,8 @@ import { ChangeDetectionStrategy, Component, Input, OnInit, ViewEncapsulation } 
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ShakingTextComponent implements OnInit {
-  @Input({ required: true }) public text: string;
-  public shakingText: string = '';
-
-  public ngOnInit(): void {
-    this.shakingText = this.text.split('').map(letter => `<span class="letter">${letter}</span>`).join('');
-  }
+export class ShakingTextComponent {
+  public readonly text = input.required<string>();
+  // Array.from корректно делит строку с эмодзи и суррогатными парами
+  public readonly letters = computed(() => Array.from(this.text()));
 }

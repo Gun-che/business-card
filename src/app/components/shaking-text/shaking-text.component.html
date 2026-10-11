@@ -1,1 +1,1 @@
-<span class="shaking-text" [innerHTML]="shakingText"></span>
+<span class="shaking-text" [attr.aria-label]="text()">@for (letter of letters(); track $index) {<span class="letter" aria-hidden="true">{{ letter }}</span>}</span>

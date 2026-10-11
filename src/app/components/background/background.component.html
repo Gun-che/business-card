@@ -1,1 +1,9 @@
 <div class="background" #background></div>
+
+@if (previewScene(); as scene) {
+  <div class="scene-label regular-text">
+    <button type="button" class="scene-arrow" (click)="switchScene(-1)" aria-label="Предыдущий фон">←</button>
+    <button type="button" class="scene-arrow" (click)="switchScene(1)" aria-label="Следующий фон">→</button>
+    {{ scene.title }}@if (scene.author) { · {{ scene.author }}}
+  </div>
+}

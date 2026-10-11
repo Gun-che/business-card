@@ -5,7 +5,8 @@
 
 .container {
   display: flex;
-  height: calc(var(--inner-height) * 1px);
+  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -19,7 +20,7 @@
 }
 
 .logo {
-  cursor: default;
+  cursor: pointer;
   grid-column: span 2;
   max-width: 50rem;
   margin: 0 auto;
@@ -87,7 +88,7 @@
   padding: 1rem;
   transition: transform 0.3s;
 
-  &hover {
+  &:hover {
     transform: scale(1.1);
   }
 }

@@ -3,14 +3,14 @@
 
 @font-face {
   font-family: 'DogicaPixel';
-  src: url('/assets/fonts/dogicapixel.ttf') format('truetype'), url('/assets/fonts/dogicapixel.otf') format('opentype');
+  src: url('/assets/fonts/dogicapixel.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
 }
 
 @font-face {
   font-family: 'DogicaPixel';
-  src: url('/assets/fonts/dogicapixelbold.ttf') format('truetype'), url('/assets/fonts/dogicapixelbold.otf') format('opentype');
+  src: url('/assets/fonts/dogicapixelbold.ttf') format('truetype');
   font-weight: bold;
   font-style: normal;
 }
@@ -60,15 +60,23 @@ html {
 
 body {
   @include light-text();
+  @include noSelect();
   margin: 0;
   cursor: none;
-  height: calc(var(--inner-height) * 1px);
+  -webkit-touch-callout: none;
+  height: 100vh;
+  height: 100dvh;
   width: 100vw;
   overflow: hidden;
 }
 
 * {
   box-sizing: border-box;
+}
+
+img {
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .regular-text {
