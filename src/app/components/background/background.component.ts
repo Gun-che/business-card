@@ -5,6 +5,7 @@ import { GlitchService } from 'src/app/services/glitch.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { wordAtPoint } from 'src/app/utils/word-at-point';
 import { GameService } from 'src/app/services/game.service';
+import type { SkullGame } from 'src/app/game/skull-game';
 
 
 @Component({
@@ -49,7 +50,7 @@ export class BackgroundComponent implements AfterViewInit {
     const previewName = new URLSearchParams(window.location.search).get('bg');
     let index = Math.max(0, backgroundScenes.findIndex(scene => scene.name === previewName));
 
-    const { dispose, switchScene, triggerStrongGlitch, showWord } = drawBackground({
+    const background = drawBackground({
       el: this.backgroundRef?.nativeElement,
       eventsEl: window.document.body,
       shaderPoints: 5,
@@ -59,6 +60,7 @@ export class BackgroundComponent implements AfterViewInit {
       radius2: 150,
       velocityTreshold: 200
     }, backgroundScenes[index]);
+    const { dispose, switchScene, triggerStrongGlitch, showWord } = background;
 
     this.destroyRef.onDestroy(dispose);
     this.glitchService.burst$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(triggerStrongGlitch);
@@ -79,14 +81,36 @@ export class BackgroundComponent implements AfterViewInit {
     // Игра идёт на сцене Holo glitch; после выхода возвращаем сцену, которая была до игры
     const gameSceneIndex = backgroundScenes.findIndex(scene => scene.name === 'holo');
     let sceneBeforeGame = index;
-    this.gameService.sceneRequest$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(request => {
+    let game: SkullGame | null = null;
+    const stopGame = () => {
+      game?.dispose();
+      game = null;
+    };
+    this.destroyRef.onDestroy(stopGame);
+
+    this.gameService.sceneRequest$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async request => {
       if (request === 'enter') {
         sceneBeforeGame = index;
         index = gameSceneIndex;
+        switchScene(backgroundScenes[index], showLabel);
+        // Движок грузится лениво, вместе с three.js он уже в кэше
+        const { SkullGame } = await import('src/app/game/skull-game');
+        if (this.gameService.phase() !== 'playing') {
+          return;
+        }
+        stopGame();
+        game = new SkullGame({
+          scene: background.scene,
+          getAspect: background.getAspect,
+          addFrameCallback: background.addFrameCallback,
+          onStatus: (level, timeLeft, hint) => this.ngZone.run(() => this.gameService.setStatus(level, timeLeft, hint))
+        });
+        game.start();
       } else {
+        stopGame();
         index = sceneBeforeGame;
+        switchScene(backgroundScenes[index], showLabel);
       }
-      switchScene(backgroundScenes[index], showLabel);
     });
 
     const showLabel = () => {

@@ -1,12 +1,13 @@
 import { ChangeDetectionStrategy, Component, HostListener, inject } from '@angular/core';
 import { GameService } from 'src/app/services/game.service';
 import { showHide } from 'src/app/animations/show-hide.animation';
+import { ShakingTextComponent } from 'src/app/components/shaking-text/shaking-text.component';
 
 // Интерфейс поверх игры: угол с уровнем и таймером, экраны смерти и победы
 @Component({
   selector: 'game-overlay',
   standalone: true,
-  imports: [],
+  imports: [ShakingTextComponent],
   templateUrl: './game-overlay.component.html',
   styleUrl: './game-overlay.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

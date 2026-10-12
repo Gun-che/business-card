@@ -89,6 +89,8 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
   const uForward = { value: new Vector3() };
 
   let curveAlphaTarget = 0;
+  // Внешние подписчики на кадр (мини-игра): dt и время в секундах
+  const frameCallbacks = new Set<(dt: number, time: number) => void>();
   let pointerMoved = false;
   let material: ShaderMaterial;
 
@@ -262,6 +264,8 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
       glitchBurst *= GLITCH_DECAY;
       updateGlitchWave();
       updateWord();
+      const dt = Math.min(clock.elapsed, 200) / 1000;
+      frameCallbacks.forEach(callback => callback(dt, uTime.value));
       const idle = Math.sin(uTime.value * 1.7) * Math.sin(uTime.value * 5.3) > 0.9 ? GLITCH_IDLE * 3 : GLITCH_IDLE;
       uGlitch.value = Math.min(GLITCH_STRONG, idle + glitchBurst);
       uColor.value.setRGB(velocity.z, 0, 1 - velocity.z);
@@ -293,12 +297,29 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
     }
   });
 
+  function addFrameCallback(callback: (dt: number, time: number) => void): () => void {
+    frameCallbacks.add(callback);
+    return () => frameCallbacks.delete(callback);
+  }
+
   function dispose() {
+    frameCallbacks.clear();
     if (switchTimer !== null) {
       clearTimeout(switchTimer);
     }
     instance.dispose();
   }
 
-  return { config, setScene, switchScene, triggerStrongGlitch, showWord, dispose };
+  return {
+    config,
+    setScene,
+    switchScene,
+    triggerStrongGlitch,
+    triggerLocalGlitch,
+    showWord,
+    addFrameCallback,
+    scene: instance.scene,
+    getAspect: () => instance.width / instance.height,
+    dispose
+  };
 }

@@ -15,8 +15,13 @@
   pointer-events: auto;
 }
 
-.hud-hint {
-  opacity: 0.8;
+// Подсказка — там же, где на визитке стоит строка про F
+.hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2rem;
+  text-align: center;
 }
 
 .hud-button {

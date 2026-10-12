@@ -1,5 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
+import { Hint } from 'src/app/game/levels';
 
 export type GamePhase = 'idle' | 'playing' | 'dead' | 'won';
 
@@ -16,7 +17,7 @@ export class GameService {
   public readonly hintVisible = signal(false);
   public readonly level = signal(1);
   public readonly timeLeft = signal(30);
-  public readonly hint = signal('');
+  public readonly hint = signal<Hint>({ text: '', accent: '' });
 
   private readonly sceneRequestSubject = new Subject<GameSceneRequest>();
   public readonly sceneRequest$: Observable<GameSceneRequest> = this.sceneRequestSubject.asObservable();
@@ -39,6 +40,13 @@ export class GameService {
     this.phase.set('playing');
     this.level.set(1);
     this.timeLeft.set(30);
+  }
+
+  // Движок игры сообщает состояние для HUD
+  public setStatus(level: number, timeLeft: number, hint: Hint): void {
+    this.level.set(level);
+    this.timeLeft.set(timeLeft);
+    this.hint.set(hint);
   }
 
   public leave(): void {

@@ -1,9 +1,15 @@
 @if (game.phase() !== 'idle') {
   <div [@showHide] class="hud regular-text">
     <div class="hud-line">LEVEL {{ game.level() }} · {{ game.timeLeft() }}s</div>
-    @if (game.hint()) {
-      <div class="hud-line hud-hint">{{ game.hint() }}</div>
-    }
     <button type="button" class="hud-button" (click)="game.leave()">Leave</button>
   </div>
+
+  @if (game.hint().text; as text) {
+    <div [@showHide] class="hint regular-text">
+      {{ text }}
+      @if (game.hint().accent; as accent) {
+        <shaking-text [text]="accent" class="accent-text"></shaking-text>
+      }
+    </div>
+  }
 }
