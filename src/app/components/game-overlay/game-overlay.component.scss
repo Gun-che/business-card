@@ -22,6 +22,12 @@
   right: 0;
   bottom: 2rem;
   text-align: center;
+  transition: transform 0.3s;
+}
+
+// Правило сменилось — подсказка крупнее и вся акцентная
+.hint-flash {
+  transform: scale(1.25);
 }
 
 .screen {

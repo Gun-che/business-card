@@ -41,7 +41,7 @@ vec3 tunnel(vec2 uv, vec2 mouse, float t) {
     float wall = max(abs(ray.x), abs(ray.y));
     float dist = 1.0 / max(wall, 1e-3);
     vec3 p = ray * dist;
-    float z = p.z + t * 2.0;
+    float z = p.z + uTravel * 2.0;
 
     // Координата вдоль периметра
     float side = step(abs(ray.x), abs(ray.y));
@@ -54,7 +54,7 @@ vec3 tunnel(vec2 uv, vec2 mouse, float t) {
     grid = clamp(grid, 0.0, 1.0);
 
     // Бегущие кольца
-    float ring = smoothstep(0.1, 0.0, abs(fract(z * 0.25 - t * 0.5) - 0.5) - 0.4);
+    float ring = smoothstep(0.1, 0.0, abs(fract(z * 0.25 - uTravel * 0.5) - 0.5) - 0.4);
 
     float fade = exp(-dist * 0.18);
     vec3 col = mix(holoA, holoB, 0.5 + 0.5 * sin(z * 0.5 + t));

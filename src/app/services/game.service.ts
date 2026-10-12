@@ -4,6 +4,8 @@ import { Hint } from 'src/app/game/levels';
 
 export type GamePhase = 'idle' | 'playing' | 'dead' | 'won';
 
+const HINT_FLASH_MS = 2500;
+
 // Что фон должен сделать с состоянием игры: уйти на сцену игры или вернуть прежнюю
 export type GameSceneRequest = 'enter' | 'restore' | 'retry';
 
@@ -21,6 +23,9 @@ export class GameService {
   public readonly level = signal(1);
   public readonly timeLeft = signal(30);
   public readonly hint = signal<Hint>({ text: '', accent: '' });
+  // Правило сменилось (число нажатий) — подсказка подсвечивается и трясётся
+  public readonly hintFlash = signal(false);
+  private hintFlashTimer: ReturnType<typeof setTimeout> | null = null;
 
   private readonly sceneRequestSubject = new Subject<GameSceneRequest>();
   public readonly sceneRequest$: Observable<GameSceneRequest> = this.sceneRequestSubject.asObservable();
@@ -65,9 +70,21 @@ export class GameService {
 
   // Движок игры сообщает состояние для HUD
   public setStatus(level: number, timeLeft: number, hint: Hint): void {
+    const previous = this.hint();
     this.level.set(level);
     this.timeLeft.set(timeLeft);
     this.hint.set(hint);
+    if (level > 1 && (previous.text !== hint.text || previous.accent !== hint.accent)) {
+      this.flashHint();
+    }
+  }
+
+  private flashHint(): void {
+    this.hintFlash.set(true);
+    if (this.hintFlashTimer !== null) {
+      clearTimeout(this.hintFlashTimer);
+    }
+    this.hintFlashTimer = setTimeout(() => this.hintFlash.set(false), HINT_FLASH_MS);
   }
 
   public leave(): void {

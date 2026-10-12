@@ -61,7 +61,7 @@ export class BackgroundComponent implements AfterViewInit {
       radius2: 150,
       velocityTreshold: 200
     }, backgroundScenes[index]);
-    const { dispose, switchScene, triggerStrongGlitch, triggerLocalGlitch, showWord } = background;
+    const { dispose, switchScene, triggerStrongGlitch, triggerLocalGlitch, triggerGlitch, showWord } = background;
 
     this.destroyRef.onDestroy(dispose);
     this.glitchService.burst$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(triggerStrongGlitch);
@@ -107,7 +107,9 @@ export class BackgroundComponent implements AfterViewInit {
           onStatus: (level, timeLeft, hint) => this.ngZone.run(() => this.gameService.setStatus(level, timeLeft, hint)),
           onDeath: () => this.ngZone.run(() => this.gameService.die()),
           glitchWave: (x, y) => triggerLocalGlitch({ x, y }),
-          glitchStrong: triggerStrongGlitch
+          glitchStrong: triggerStrongGlitch,
+          glitch: triggerGlitch,
+          setTravelSpeed: background.setTravelSpeed
         });
         background.setClickEffectsEnabled(false);
         background.setGameMode(true);
@@ -118,6 +120,7 @@ export class BackgroundComponent implements AfterViewInit {
         stopGame();
         background.setClickEffectsEnabled(true);
         background.setGameMode(false);
+        background.setTravelSpeed(1);
         index = sceneBeforeGame;
         switchScene(backgroundScenes[index], showLabel);
       }

@@ -6,8 +6,12 @@
 }
 
 @if (game.phase() === 'playing' && game.hint().text; as text) {
-  <div [@showHide] class="hint regular-text">
-    {{ text }}
+  <div [@showHide] class="hint regular-text" [class.hint-flash]="game.hintFlash()">
+    @if (game.hintFlash()) {
+      <shaking-text [text]="text" class="accent-text"></shaking-text>
+    } @else {
+      {{ text }}
+    }
     @if (game.hint().accent; as accent) {
       <shaking-text [text]="accent" class="accent-text"></shaking-text>
     }

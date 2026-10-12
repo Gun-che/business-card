@@ -9,7 +9,8 @@ export interface LevelConfig {
   maxActive: number;
 }
 
-export const LEVEL_DURATION = 30;
+// TODO: вернуть 30 после тестов
+export const LEVEL_DURATION = 5;
 export const BOSS_LEVEL = 10;
 
 // Уровни 1–9 (индекс 0–8); ориентир из ТЗ, крутим после первой играбельной версии

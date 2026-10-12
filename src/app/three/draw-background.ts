@@ -71,6 +71,8 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
   const uMouse = { value: new Vector4() };
   const uGlitch = { value: 0.0 };
   const uGame = { value: 0.0 };
+  const uTravel = { value: 0.0 };
+  let travelSpeed = 1;
   // xy — точка клика в пикселях буфера, z — радиус волны, w — сила
   const uGlitchWave = { value: new Vector4(0, 0, 0, 0) };
   let glitchBurst = 0;
@@ -139,6 +141,11 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
   // Клавиша F: вспышка на весь экран
   function triggerStrongGlitch() {
     glitchBurst = Math.max(glitchBurst, GLITCH_STRONG);
+  }
+
+  // Вспышка произвольной силы на весь экран (смена уровня в игре)
+  function triggerGlitch(strength: number) {
+    glitchBurst = Math.max(glitchBurst, Math.min(strength, GLITCH_STRONG));
   }
 
   // Рисуем слово пиксельным шрифтом в канвас и отдаём в шейдер как текстуру
@@ -225,7 +232,7 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
       const geometry = new PlaneGeometry(2, 2);
       material = new ShaderMaterial({
         uniforms: {
-          uRatio, uSize, uPoints, uColor, uTime, uResolution, uCurveAlpha, uCurveFlash, uMouse, uGlitch, uGlitchWave, uGame,
+          uRatio, uSize, uPoints, uColor, uTime, uResolution, uCurveAlpha, uCurveFlash, uMouse, uGlitch, uGlitchWave, uGame, uTravel,
           uWord, uWordRect, uWordStrength,
           uEye, uCenter, uCameraDir, uRight, uUp, uForward
         },
@@ -268,6 +275,7 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
       updateGlitchWave();
       updateWord();
       const dt = Math.min(clock.elapsed, 200) / 1000;
+      uTravel.value += dt * travelSpeed;
       frameCallbacks.forEach(callback => callback(dt, uTime.value));
       const idle = Math.sin(uTime.value * 1.7) * Math.sin(uTime.value * 5.3) > 0.9 ? GLITCH_IDLE * 3 : GLITCH_IDLE;
       uGlitch.value = Math.min(GLITCH_STRONG, idle + glitchBurst);
@@ -324,6 +332,8 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
     triggerLocalGlitch,
     setClickEffectsEnabled: (enabled: boolean) => clickEffectsEnabled = enabled,
     setGameMode: (enabled: boolean) => uGame.value = enabled ? 1 : 0,
+    setTravelSpeed: (speed: number) => travelSpeed = speed,
+    triggerGlitch,
     showWord,
     addFrameCallback,
     scene: instance.scene,

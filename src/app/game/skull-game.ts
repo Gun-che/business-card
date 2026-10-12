@@ -11,9 +11,12 @@ export interface SkullGameHost {
   onStatus: (level: number, timeLeft: number, hint: Hint) => void;
   // Череп долетел до камеры
   onDeath: () => void;
-  // Глитч-волна из точки (NDC) и сильная вспышка на весь экран
+  // Глитч-волна из точки (NDC), сильная вспышка на весь экран и вспышка заданной силы
   glitchWave: (x: number, y: number) => void;
   glitchStrong: () => void;
+  glitch: (strength: number) => void;
+  // Скорость полёта по туннелю (1 — как вне игры)
+  setTravelSpeed: (speed: number) => void;
 }
 
 interface Skull {
@@ -25,6 +28,9 @@ interface Skull {
   // Направление разлёта от центра туннеля в NDC
   directionX: number;
   directionY: number;
+  // Точка появления — не ровно центр, а случайная точка центральной области
+  originX: number;
+  originY: number;
   hitsLeft: number;
   // Во сколько раз спрайт больше базового (рогатый череп нарисован на большей сетке)
   spriteScale: number;
@@ -52,6 +58,8 @@ const SKULL_SIZE_NEAR = 0.9;
 const LETTER_SIZE_RATIO = 0.45;
 // Насколько черепа разлетаются от центра к краям экрана
 const SPREAD = 0.9;
+// Разброс точки появления в центральной области (NDC)
+const SPAWN_SPREAD = 0.25;
 // Прозрачность черепа — фон просвечивает
 const SKULL_OPACITY = 0.72;
 // Покачивание: амплитуда в долях размера, частоты в рад/с
@@ -67,10 +75,10 @@ const GHOST_COLOR = new Color(1.0, 0.3, 0.9);
 // Дрожание после попадания: длительность и амплитуда в долях размера
 const SHAKE_TIME = 0.25;
 const SHAKE_AMPLITUDE = 0.12;
-// Брызги: количество и разлёт при взрыве; при обычном попадании — вдвое меньше
+// Брызги: количество и разлёт при взрыве; при обычном попадании разлёт тот же, частиц меньше
 const EXPLODE_COUNT = 70;
 const EXPLODE_SPEED = 4.8;
-const SPLASH_RATIO = 0.5;
+const SPLASH_RATIO = 0.6;
 const PARTICLE_SIZE = 0.24;
 // Капли на мониторе: если череп взорвался ближе этой доли пути, сколько капель и их размер (доля высоты экрана)
 const SPLAT_PROGRESS = 0.5;
@@ -85,6 +93,9 @@ const BLOOD_MAX = 160;
 const FADE_IN_TIME = 0.5;
 // Длительность кадра анимации черепа, с
 const FRAME_TIME = 0.35;
+// Смена уровня: сила вспышки глитча; разгон туннеля за уровень
+const LEVEL_GLITCH = 0.7;
+const TRAVEL_SPEED_PER_LEVEL = 0.18;
 // Минимальная зона тапа по черепу, px
 const MIN_TAP_RADIUS_PX = 44;
 // Слой над шейдерным фоном
@@ -156,7 +167,7 @@ export class SkullGame {
     this.host.glitchWave(skull.x, skull.y);
     if (skull.hitsLeft > 0) {
       skull.shakeTime = SHAKE_TIME;
-      this.particles.burst(skull.x, skull.y, EXPLODE_COUNT * SPLASH_RATIO, EXPLODE_SPEED * SPLASH_RATIO * skull.size, PARTICLE_SIZE * skull.size);
+      this.particles.burst(skull.x, skull.y, EXPLODE_COUNT * SPLASH_RATIO, EXPLODE_SPEED * skull.size, PARTICLE_SIZE * skull.size);
       return;
     }
     this.particles.burst(skull.x, skull.y, EXPLODE_COUNT, EXPLODE_SPEED * skull.size, PARTICLE_SIZE * skull.size);
@@ -192,6 +203,7 @@ export class SkullGame {
     this.clearSkulls();
     this.particles.clear();
     this.frozen = false;
+    this.host.setTravelSpeed(1);
     this.bloodCount = 0;
     this.bloodAccumulator = 0;
     this.levelIndex = 0;
@@ -222,6 +234,9 @@ export class SkullGame {
     if (this.levelTime >= LEVEL_DURATION && this.levelIndex < LEVELS.length - 1) {
       this.levelIndex++;
       this.levelTime -= LEVEL_DURATION;
+      // Пауз нет — смену уровня отмечает вспышка и разгон туннеля
+      this.host.glitch(LEVEL_GLITCH);
+      this.host.setTravelSpeed(1 + this.levelIndex * TRAVEL_SPEED_PER_LEVEL);
     }
 
     this.sinceSpawn += dt;
@@ -279,6 +294,8 @@ export class SkullGame {
       flightTime,
       directionX: Math.cos(angle) * radius,
       directionY: Math.sin(angle) * radius,
+      originX: (Math.random() - 0.5) * 2 * SPAWN_SPREAD,
+      originY: (Math.random() - 0.5) * 2 * SPAWN_SPREAD,
       hitsLeft: hits,
       spriteScale: scale,
       frames,
@@ -313,8 +330,10 @@ export class SkullGame {
     const spread = SPREAD * Math.pow(p, 1.6);
 
     const { group } = skull;
-    skull.x = skull.directionX * spread;
-    skull.y = skull.directionY * spread;
+    // Точка появления влияет на старте и сходит на нет по мере приближения
+    const originWeight = 1 - p;
+    skull.x = skull.originX * originWeight + skull.directionX * spread;
+    skull.y = skull.originY * originWeight + skull.directionY * spread;
     skull.size = size;
     // Дрожание после попадания — случайный сдвиг, затухающий к концу
     const shake = skull.shakeTime / SHAKE_TIME * SHAKE_AMPLITUDE * size;
