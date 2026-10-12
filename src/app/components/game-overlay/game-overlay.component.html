@@ -1,0 +1,9 @@
+@if (game.phase() !== 'idle') {
+  <div [@showHide] class="hud regular-text">
+    <div class="hud-line">LEVEL {{ game.level() }} · {{ game.timeLeft() }}s</div>
+    @if (game.hint()) {
+      <div class="hud-line hud-hint">{{ game.hint() }}</div>
+    }
+    <button type="button" class="hud-button" (click)="game.leave()">Leave</button>
+  </div>
+}

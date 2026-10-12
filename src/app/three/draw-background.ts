@@ -30,6 +30,8 @@ const CLICK_VELOCITY = 0.55;
 const GLITCH_IDLE = 0.08;
 const GLITCH_CLICK = 0.8;
 const GLITCH_STRONG = 1.6;
+// Переключение сцены: подмена шейдера на пике глитча, мс после начала вспышки
+const SCENE_SWITCH_DELAY_MS = 250;
 // Волна от клика: скорость расширения (в высотах экрана в секунду) и время жизни в секундах
 const GLITCH_WAVE_SPEED = 1.8;
 const GLITCH_WAVE_LIFE = 0.9;
@@ -193,6 +195,21 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
     material.needsUpdate = true;
   }
 
+  // Сильный глитч на границе сцен: вспышка на старой, подмена на пике, затухание уже на новой
+  let switchTimer: ReturnType<typeof setTimeout> | null = null;
+  function switchScene(scene: BackgroundScene, onSwitched?: () => void) {
+    if (switchTimer !== null) {
+      clearTimeout(switchTimer);
+    }
+    triggerStrongGlitch();
+    switchTimer = setTimeout(() => {
+      switchTimer = null;
+      setScene(scene);
+      triggerStrongGlitch();
+      onSwitched?.();
+    }, SCENE_SWITCH_DELAY_MS);
+  }
+
   const instance = three({
     ...threeConfig,
     antialias: false,
@@ -276,5 +293,12 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
     }
   });
 
-  return { config, setScene, triggerStrongGlitch, showWord, dispose: instance.dispose };
+  function dispose() {
+    if (switchTimer !== null) {
+      clearTimeout(switchTimer);
+    }
+    instance.dispose();
+  }
+
+  return { config, setScene, switchScene, triggerStrongGlitch, showWord, dispose };
 }

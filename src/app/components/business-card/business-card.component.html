@@ -3,7 +3,7 @@
     <div [@showHide] class="loading header-text">
       <shaking-text class="text" text="Loading..."></shaking-text>
     </div>
-  } @else {
+  } @else if (game.phase() === 'idle') {
     <div [@showHide] class="main-grid">
       <div class="logo" (click)="glitch()">
         <img [attr.src]="logoUrl" alt="Vanya Goncharov" draggable="false">
@@ -66,6 +66,13 @@
           Press "
           <shaking-text (click)="toggleRap()" text="F" class="accent-text f"></shaking-text>
           " to pay respect!
+          @if (game.hintVisible()) {
+            <div [@showHide]>
+              Don't press "
+              <shaking-text (click)="startGame()" text="Z" class="accent-text f"></shaking-text>
+              "!
+            </div>
+          }
         </div>
       </div>
     </div>

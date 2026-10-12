@@ -4,6 +4,7 @@ import { BackgroundScene } from 'src/app/three/scenes/background-scene.model';
 import { GlitchService } from 'src/app/services/glitch.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { wordAtPoint } from 'src/app/utils/word-at-point';
+import { GameService } from 'src/app/services/game.service';
 
 
 @Component({
@@ -18,6 +19,7 @@ export class BackgroundComponent implements AfterViewInit {
   private readonly ngZone: NgZone = inject(NgZone);
   private readonly destroyRef: DestroyRef = inject(DestroyRef);
   private readonly glitchService: GlitchService = inject(GlitchService);
+  private readonly gameService: GameService = inject(GameService);
   @ViewChild('background') public backgroundRef: Nullable<ElementRef<HTMLElement>>;
   private destroyed = false;
 
@@ -47,7 +49,7 @@ export class BackgroundComponent implements AfterViewInit {
     const previewName = new URLSearchParams(window.location.search).get('bg');
     let index = Math.max(0, backgroundScenes.findIndex(scene => scene.name === previewName));
 
-    const { dispose, setScene, triggerStrongGlitch, showWord } = drawBackground({
+    const { dispose, switchScene, triggerStrongGlitch, showWord } = drawBackground({
       el: this.backgroundRef?.nativeElement,
       eventsEl: window.document.body,
       shaderPoints: 5,
@@ -61,8 +63,11 @@ export class BackgroundComponent implements AfterViewInit {
     this.destroyRef.onDestroy(dispose);
     this.glitchService.burst$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(triggerStrongGlitch);
 
-    // Клик по тексту — слово проявляется на фоне в глитч-эффекте
+    // Клик по тексту — слово проявляется на фоне в глитч-эффекте (вне игры)
     const onClick = (event: MouseEvent) => {
+      if (this.gameService.phase() !== 'idle') {
+        return;
+      }
       const word = wordAtPoint(event.clientX, event.clientY);
       if (word) {
         showWord(word, event.clientX, event.clientY);
@@ -71,21 +76,36 @@ export class BackgroundComponent implements AfterViewInit {
     document.addEventListener('click', onClick);
     this.destroyRef.onDestroy(() => document.removeEventListener('click', onClick));
 
-    if (previewName === null) {
-      return;
-    }
+    // Игра идёт на сцене Holo glitch; после выхода возвращаем сцену, которая была до игры
+    const gameSceneIndex = backgroundScenes.findIndex(scene => scene.name === 'holo');
+    let sceneBeforeGame = index;
+    this.gameService.sceneRequest$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(request => {
+      if (request === 'enter') {
+        sceneBeforeGame = index;
+        index = gameSceneIndex;
+      } else {
+        index = sceneBeforeGame;
+      }
+      switchScene(backgroundScenes[index], showLabel);
+    });
 
-    const showScene = () => {
-      setScene(backgroundScenes[index]);
+    const showLabel = () => {
+      if (previewName === null) {
+        return;
+      }
       this.ngZone.run(() => this.previewScene.set(backgroundScenes[index]));
       const url = new URL(window.location.href);
       url.searchParams.set('bg', backgroundScenes[index].name);
       window.history.replaceState(null, '', url);
     };
 
+    if (previewName === null) {
+      return;
+    }
+
     this.switchScene = (step: number) => {
       index = (index + step + backgroundScenes.length) % backgroundScenes.length;
-      showScene();
+      switchScene(backgroundScenes[index], showLabel);
     };
 
     const onKeydown = (event: KeyboardEvent) => {
@@ -95,7 +115,7 @@ export class BackgroundComponent implements AfterViewInit {
       }
     };
 
-    showScene();
+    showLabel();
     document.addEventListener('keydown', onKeydown);
     this.destroyRef.onDestroy(() => document.removeEventListener('keydown', onKeydown));
   }
