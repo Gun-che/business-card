@@ -1,6 +1,7 @@
 import { Color, Group, Mesh, MeshBasicMaterial, PlaneGeometry, Texture } from 'three';
 import { SkullTexture, textTexture } from './textures';
 import { ParticleSystem } from './particles';
+import { GAME_LETTERS } from './levels';
 
 export interface BossHost {
   glitchWave: (x: number, y: number) => void;
@@ -34,7 +35,7 @@ const EXPLODE_PARTICLE_SIZE = 0.16;
 const EXPLODE_SPLATS = 12;
 const EXPLODE_SPLAT_SIZE = 0.08;
 // Буквы: позиции по кругу, сколько горит, сколько нажатий, пауза между буквами
-export const BOSS_LETTER_TIME = 4;
+export const BOSS_LETTER_TIME = 3.5;
 export const BOSS_LETTER_HITS = 10;
 const LETTER_POSITIONS = 8;
 // Кольцо букв — эллипс вокруг босса: полуоси в долях высоты экрана, по X ограничено краем экрана
@@ -49,7 +50,6 @@ const COUNTER_SIZE = 0.11;
 const TIMER_WIDTH = 0.3;
 const TIMER_HEIGHT = 0.025;
 const LETTER_PAUSE = 0.3;
-const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const RENDER_ORDER = 10;
 const TIMER_COLOR = new Color(0x3ed3ff);
 
@@ -203,7 +203,7 @@ export class Boss {
     // Буква не повторяет предыдущую, позиция — тоже
     let letter = this.lastLetter;
     while (letter === this.lastLetter) {
-      letter = LETTERS[Math.floor(Math.random() * LETTERS.length)];
+      letter = GAME_LETTERS[Math.floor(Math.random() * GAME_LETTERS.length)];
     }
     let position = this.lastPosition;
     while (position === this.lastPosition) {

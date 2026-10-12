@@ -1,7 +1,7 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { AchievementService } from 'src/app/services/achievement.service';
 import { Observable, Subject } from 'rxjs';
-import { Hint, LEVEL_DURATION } from 'src/app/game/levels';
+import { Hint, LEVELS } from 'src/app/game/levels';
 
 export type GamePhase = 'idle' | 'playing' | 'dead' | 'won';
 
@@ -27,7 +27,7 @@ export class GameService {
   // Строка «Don't press Z» появляется после первого нажатия F
   public readonly hintVisible = signal(false);
   public readonly level = signal(1);
-  public readonly timeLeft = signal(LEVEL_DURATION);
+  public readonly timeLeft = signal(LEVELS[0].duration);
   public readonly hint = signal<Hint>({ text: '', accent: '' });
   // Правило сменилось (число нажатий) — подсказка подсвечивается и трясётся
   public readonly hintFlash = signal(false);
@@ -96,7 +96,7 @@ export class GameService {
     }
     this.phase.set('playing');
     this.level.set(1);
-    this.timeLeft.set(LEVEL_DURATION);
+    this.timeLeft.set(LEVELS[0].duration);
     this.announcedLevel = 0;
     // Подсказка прошлой партии не должна мелькнуть, пока грузится движок
     this.hint.set({ text: '', accent: '' });
@@ -109,7 +109,7 @@ export class GameService {
     }
     this.phase.set('playing');
     this.level.set(1);
-    this.timeLeft.set(LEVEL_DURATION);
+    this.timeLeft.set(LEVELS[0].duration);
     this.announcedLevel = 0;
     this.sceneRequestSubject.next('retry');
   }

@@ -1,6 +1,6 @@
 import { Color, Group, Mesh, MeshBasicMaterial, PlaneGeometry, Scene, Texture } from 'three';
 import { createBossTexture, createSkullTextures, disposeLetterTextures, letterTexture, SkullTexture } from './textures';
-import { BOSS_HINT, BOSS_LEVEL, Hint, hintForHits, LEVEL_DURATION, LEVELS } from './levels';
+import { BOSS_DURATION, BOSS_HINT, BOSS_LEVEL, GAME_LETTERS, Hint, hintForHits, LEVELS } from './levels';
 import { Boss } from './boss';
 import { ParticleSystem } from './particles';
 
@@ -110,7 +110,6 @@ const TRAVEL_SPEED_PER_LEVEL = 0.18;
 const MIN_TAP_RADIUS_PX = 44;
 // Слой над шейдерным фоном
 const RENDER_ORDER = 10;
-const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 export class SkullGame {
   private readonly root = new Group();
@@ -267,8 +266,9 @@ export class SkullGame {
     }
 
     this.levelTime += dt;
-    if (this.levelTime >= LEVEL_DURATION) {
-      this.levelTime -= LEVEL_DURATION;
+    const duration = LEVELS[this.levelIndex].duration;
+    if (this.levelTime >= duration) {
+      this.levelTime -= duration;
       if (this.levelIndex === LEVELS.length - 1) {
         this.startBoss();
         return;
@@ -312,7 +312,7 @@ export class SkullGame {
     this.levelIndex = BOSS_LEVEL - 1;
     this.host.glitchStrong();
     this.host.setTravelSpeed(1 + this.levelIndex * TRAVEL_SPEED_PER_LEVEL);
-    this.boss = new Boss(this.root, this.geometry, this.bossTexture, this.particles, this.host, LEVEL_DURATION);
+    this.boss = new Boss(this.root, this.geometry, this.bossTexture, this.particles, this.host, BOSS_DURATION);
     this.lastReportedSecond = -1;
   }
 
@@ -349,7 +349,7 @@ export class SkullGame {
 
   private spawn(flightTime: number, hits: number): void {
     const used = new Set(this.skulls.map(skull => skull.letter));
-    const free = Array.from(LETTERS).filter(letter => !used.has(letter));
+    const free = Array.from(GAME_LETTERS).filter(letter => !used.has(letter));
     const letter = free[Math.floor(Math.random() * free.length)];
 
     const group = new Group();
@@ -471,7 +471,8 @@ export class SkullGame {
   }
 
   private reportStatus(): void {
-    const timeLeft = Math.max(0, Math.ceil(LEVEL_DURATION - this.levelTime));
+    const duration = this.boss ? BOSS_DURATION : LEVELS[this.levelIndex].duration;
+    const timeLeft = Math.max(0, Math.ceil(duration - this.levelTime));
     if (timeLeft === this.lastReportedSecond) {
       return;
     }
