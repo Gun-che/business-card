@@ -6,6 +6,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { wordAtPoint } from 'src/app/utils/word-at-point';
 import { GameService } from 'src/app/services/game.service';
 import type { SkullGame } from 'src/app/game/skull-game';
+import { Vector2 } from 'three';
 
 
 @Component({
@@ -60,7 +61,7 @@ export class BackgroundComponent implements AfterViewInit {
       radius2: 150,
       velocityTreshold: 200
     }, backgroundScenes[index]);
-    const { dispose, switchScene, triggerStrongGlitch, showWord } = background;
+    const { dispose, switchScene, triggerStrongGlitch, triggerLocalGlitch, showWord } = background;
 
     this.destroyRef.onDestroy(dispose);
     this.glitchService.burst$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(triggerStrongGlitch);
@@ -103,13 +104,30 @@ export class BackgroundComponent implements AfterViewInit {
           scene: background.scene,
           getAspect: background.getAspect,
           addFrameCallback: background.addFrameCallback,
-          onStatus: (level, timeLeft, hint) => this.ngZone.run(() => this.gameService.setStatus(level, timeLeft, hint))
+          onStatus: (level, timeLeft, hint) => this.ngZone.run(() => this.gameService.setStatus(level, timeLeft, hint)),
+          onDeath: () => this.ngZone.run(() => this.gameService.die()),
+          glitchWave: (x, y) => triggerLocalGlitch({ x, y }),
+          glitchStrong: triggerStrongGlitch
         });
+        background.setClickEffectsEnabled(false);
+        background.setGameMode(true);
         game.start();
+      } else if (request === 'retry') {
+        game?.start();
       } else {
         stopGame();
+        background.setClickEffectsEnabled(true);
+        background.setGameMode(false);
         index = sceneBeforeGame;
         switchScene(backgroundScenes[index], showLabel);
+      }
+    });
+
+    this.gameService.input$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(input => {
+      if (input.type === 'letter') {
+        game?.hitLetter(input.letter);
+      } else {
+        game?.hitAt(input.x, input.y, window.innerHeight);
       }
     });
 

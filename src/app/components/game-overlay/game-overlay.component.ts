@@ -18,8 +18,30 @@ export class GameOverlayComponent {
 
   @HostListener('document:keydown', ['$event'])
   public onKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape' && this.game.phase() !== 'idle') {
-      this.game.leave();
+    if (this.game.phase() === 'idle') {
+      return;
     }
+    if (event.key === 'Escape') {
+      this.game.leave();
+      return;
+    }
+    // Буквы — по физической клавише, чтобы работало в любой раскладке
+    const match = /^Key([A-Z])$/.exec(event.code);
+    if (match && !event.repeat) {
+      this.game.input({ type: 'letter', letter: match[1] });
+    }
+  }
+
+  @HostListener('document:pointerdown', ['$event'])
+  public onPointerDown(event: PointerEvent): void {
+    // Кнопки интерфейса — не тап по черепу
+    if (this.game.phase() !== 'playing' || (event.target as HTMLElement).closest('button')) {
+      return;
+    }
+    this.game.input({
+      type: 'point',
+      x: event.clientX / window.innerWidth * 2 - 1,
+      y: 1 - event.clientY / window.innerHeight * 2
+    });
   }
 }

@@ -1,6 +1,7 @@
 import { Color, Group, Mesh, MeshBasicMaterial, PlaneGeometry, Scene, Texture } from 'three';
 import { createSkullTextures, disposeLetterTextures, letterTexture, SkullTexture } from './textures';
 import { Hint, hintForHits, LEVEL_DURATION, LEVELS } from './levels';
+import { ParticleSystem } from './particles';
 
 export interface SkullGameHost {
   scene: Scene;
@@ -8,6 +9,11 @@ export interface SkullGameHost {
   addFrameCallback: (callback: (dt: number, time: number) => void) => () => void;
   // Состояние для интерфейса: уровень, секунды до конца уровня, подсказка
   onStatus: (level: number, timeLeft: number, hint: Hint) => void;
+  // Череп долетел до камеры
+  onDeath: () => void;
+  // Глитч-волна из точки (NDC) и сильная вспышка на весь экран
+  glitchWave: (x: number, y: number) => void;
+  glitchStrong: () => void;
 }
 
 interface Skull {
@@ -22,6 +28,9 @@ interface Skull {
   hitsLeft: number;
   // Во сколько раз спрайт больше базового (рогатый череп нарисован на большей сетке)
   spriteScale: number;
+  // Кадры анимации и фаза, чтобы черепа шевелились не синхронно
+  frames: Texture[];
+  framePhase: number;
   // Фазы покачивания черепа и буквы — разные, чтобы качались в рассинхрон
   bobPhase: number;
   letterBobPhase: number;
@@ -29,6 +38,12 @@ interface Skull {
   nextGlitchAt: number;
   glitchFrames: number;
   glitchOffset: number;
+  // Дрожание после попадания, с
+  shakeTime: number;
+  // Текущие экранные координаты и размер — для попадания тапом
+  x: number;
+  y: number;
+  size: number;
 }
 
 // Размеры в долях высоты экрана (NDC: высота экрана = 2)
@@ -49,6 +64,29 @@ const GLITCH_INTERVAL_MAX = 1.6;
 const GLITCH_FRAMES = 3;
 const GLITCH_SHIFT = 0.12;
 const GHOST_COLOR = new Color(1.0, 0.3, 0.9);
+// Дрожание после попадания: длительность и амплитуда в долях размера
+const SHAKE_TIME = 0.25;
+const SHAKE_AMPLITUDE = 0.12;
+// Брызги: количество и разлёт при взрыве; при обычном попадании — вдвое меньше
+const EXPLODE_COUNT = 70;
+const EXPLODE_SPEED = 4.8;
+const SPLASH_RATIO = 0.5;
+const PARTICLE_SIZE = 0.24;
+// Капли на мониторе: если череп взорвался ближе этой доли пути, сколько капель и их размер (доля высоты экрана)
+const SPLAT_PROGRESS = 0.5;
+const SPLAT_COUNT_MIN = 5;
+const SPLAT_COUNT_MAX = 10;
+const SPLAT_SIZE = 0.06;
+// Кровь на экране смерти: сколько капель сразу и сколько добавляется в секунду, до предела
+const BLOOD_INITIAL = 60;
+const BLOOD_PER_SECOND = 12;
+const BLOOD_MAX = 160;
+// Плавное появление черепа, с
+const FADE_IN_TIME = 0.5;
+// Длительность кадра анимации черепа, с
+const FRAME_TIME = 0.35;
+// Минимальная зона тапа по черепу, px
+const MIN_TAP_RADIUS_PX = 44;
 // Слой над шейдерным фоном
 const RENDER_ORDER = 10;
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -58,6 +96,11 @@ export class SkullGame {
   private readonly geometry = new PlaneGeometry(1, 1);
   private readonly skullTextures: SkullTexture[] = createSkullTextures();
   private readonly skulls: Skull[] = [];
+  private readonly particles: ParticleSystem;
+  // После смерти всё замирает, живут только брызги
+  private frozen = false;
+  private bloodCount = 0;
+  private bloodAccumulator = 0;
   private levelIndex = 0;
   private levelTime = 0;
   private sinceSpawn = 0;
@@ -68,10 +111,69 @@ export class SkullGame {
   constructor(private readonly host: SkullGameHost) {
     this.root.position.z = -1;
     host.scene.add(this.root);
+    this.particles = new ParticleSystem(host.scene, this.root);
+  }
+
+  // Нажата буква
+  public hitLetter(letter: string): void {
+    if (this.frozen) {
+      return;
+    }
+    const index = this.skulls.findIndex(skull => skull.letter === letter);
+    if (index >= 0) {
+      this.hitSkull(index);
+    }
+  }
+
+  // Тап/клик в точке экрана (NDC). viewportHeight — высота в px, для минимальной зоны тапа
+  public hitAt(x: number, y: number, viewportHeight: number): boolean {
+    if (this.frozen) {
+      return false;
+    }
+    const aspect = this.host.getAspect();
+    const minRadius = MIN_TAP_RADIUS_PX / viewportHeight * 2;
+    let best = -1;
+    // Из попавших в зону берём ближний к камере
+    this.skulls.forEach((skull, index) => {
+      const radius = Math.max(skull.size * 0.6, minRadius);
+      const dx = (x - skull.x) * aspect;
+      const dy = y - skull.y;
+      if (dx * dx + dy * dy <= radius * radius && (best < 0 || skull.progress > this.skulls[best].progress)) {
+        best = index;
+      }
+    });
+    if (best < 0) {
+      return false;
+    }
+    this.hitSkull(best);
+    return true;
+  }
+
+  private hitSkull(index: number): void {
+    const skull = this.skulls[index];
+    skull.hitsLeft--;
+    // Волна глитча — при каждом попадании
+    this.host.glitchWave(skull.x, skull.y);
+    if (skull.hitsLeft > 0) {
+      skull.shakeTime = SHAKE_TIME;
+      this.particles.burst(skull.x, skull.y, EXPLODE_COUNT * SPLASH_RATIO, EXPLODE_SPEED * SPLASH_RATIO * skull.size, PARTICLE_SIZE * skull.size);
+      return;
+    }
+    this.particles.burst(skull.x, skull.y, EXPLODE_COUNT, EXPLODE_SPEED * skull.size, PARTICLE_SIZE * skull.size);
+    if (skull.progress >= SPLAT_PROGRESS) {
+      const count = SPLAT_COUNT_MIN + Math.floor(Math.random() * (SPLAT_COUNT_MAX - SPLAT_COUNT_MIN + 1));
+      this.particles.splat(count, SPLAT_SIZE, this.host.getAspect());
+    }
+    this.removeSkull(index);
+    // Экран не должен пустовать: если черепов не осталось, следующий вылетает сразу
+    if (this.skulls.length === 0) {
+      this.sinceSpawn = Infinity;
+    }
   }
 
   public start(): void {
     this.reset();
+    this.removeFrameCallback();
     this.removeFrameCallback = this.host.addFrameCallback((dt, time) => this.update(dt, time));
     this.reportStatus();
   }
@@ -79,14 +181,19 @@ export class SkullGame {
   public dispose(): void {
     this.removeFrameCallback();
     this.clearSkulls();
+    this.particles.dispose();
     this.host.scene.remove(this.root);
     this.geometry.dispose();
-    this.skullTextures.forEach(({ texture }) => texture.dispose());
+    this.skullTextures.forEach(({ frames }) => frames.forEach(texture => texture.dispose()));
     disposeLetterTextures();
   }
 
   private reset(): void {
     this.clearSkulls();
+    this.particles.clear();
+    this.frozen = false;
+    this.bloodCount = 0;
+    this.bloodAccumulator = 0;
     this.levelIndex = 0;
     this.levelTime = 0;
     // Первый череп появляется сразу
@@ -96,6 +203,19 @@ export class SkullGame {
 
   private update(dt: number, time: number): void {
     this.time = time;
+    const aspect = this.host.getAspect();
+    this.particles.update(dt, aspect);
+    if (this.frozen) {
+      // На экране смерти кровь понемногу продолжает появляться
+      this.bloodAccumulator += dt * BLOOD_PER_SECOND;
+      const add = Math.min(Math.floor(this.bloodAccumulator), BLOOD_MAX - this.bloodCount);
+      if (add > 0) {
+        this.particles.blood(add, aspect);
+        this.bloodCount += add;
+        this.bloodAccumulator -= add;
+      }
+      return;
+    }
     const level = LEVELS[this.levelIndex];
 
     this.levelTime += dt;
@@ -110,19 +230,28 @@ export class SkullGame {
       this.sinceSpawn = 0;
     }
 
-    const aspect = this.host.getAspect();
     for (let i = this.skulls.length - 1; i >= 0; i--) {
       const skull = this.skulls[i];
       skull.progress += dt / skull.flightTime;
+      skull.shakeTime = Math.max(0, skull.shakeTime - dt);
       if (skull.progress >= 1) {
-        // Долетел до камеры — пока просто убираем; смерть игрока — на следующем этапе
-        this.removeSkull(i);
-        continue;
+        this.die();
+        return;
       }
       this.placeSkull(skull, aspect);
     }
 
     this.reportStatus();
+  }
+
+  private die(): void {
+    this.frozen = true;
+    // На экране смерти черепа не нужны, брызги дотлевают, экран заливает кровь
+    this.skulls.forEach(skull => skull.group.visible = false);
+    this.particles.blood(BLOOD_INITIAL, this.host.getAspect());
+    this.bloodCount = BLOOD_INITIAL;
+    this.host.glitchStrong();
+    this.host.onDeath();
   }
 
   private spawn(flightTime: number, hits: number): void {
@@ -132,10 +261,10 @@ export class SkullGame {
 
     const group = new Group();
     group.renderOrder = RENDER_ORDER;
-    const { texture, scale } = this.skullTextures[Math.floor(Math.random() * this.skullTextures.length)];
-    const skullMesh = this.sprite(texture, SKULL_OPACITY);
+    const { frames, scale } = this.skullTextures[Math.floor(Math.random() * this.skullTextures.length)];
+    const skullMesh = this.sprite(frames[0], SKULL_OPACITY);
     // «Призрак» — розовая копия, видна только в кадры глитча со сдвигом
-    const ghostMesh = this.sprite(texture, 0.5);
+    const ghostMesh = this.sprite(frames[0], 0.5);
     (ghostMesh.material as MeshBasicMaterial).color = GHOST_COLOR;
     ghostMesh.visible = false;
     group.add(ghostMesh, skullMesh, this.sprite(letterTexture(letter), 1));
@@ -152,11 +281,17 @@ export class SkullGame {
       directionY: Math.sin(angle) * radius,
       hitsLeft: hits,
       spriteScale: scale,
+      frames,
+      framePhase: Math.random() * FRAME_TIME * 2,
       bobPhase: Math.random() * Math.PI * 2,
       letterBobPhase: Math.random() * Math.PI * 2,
       nextGlitchAt: this.time + this.randomGlitchDelay(),
       glitchFrames: 0,
-      glitchOffset: 0
+      glitchOffset: 0,
+      shakeTime: 0,
+      x: 0,
+      y: 0,
+      size: SKULL_SIZE_FAR
     });
   }
 
@@ -178,7 +313,14 @@ export class SkullGame {
     const spread = SPREAD * Math.pow(p, 1.6);
 
     const { group } = skull;
-    group.position.set(skull.directionX * spread, skull.directionY * spread, 0);
+    skull.x = skull.directionX * spread;
+    skull.y = skull.directionY * spread;
+    skull.size = size;
+    // Дрожание после попадания — случайный сдвиг, затухающий к концу
+    const shake = skull.shakeTime / SHAKE_TIME * SHAKE_AMPLITUDE * size;
+    const shakeX = (Math.random() - 0.5) * 2 * shake / aspect;
+    const shakeY = (Math.random() - 0.5) * 2 * shake;
+    group.position.set(skull.x + shakeX, skull.y + shakeY, 0);
 
     // Глитч спрайта: в случайный момент на несколько кадров череп дёргается в сторону,
     // а за ним проявляется розовый «призрак» со сдвигом в другую сторону
@@ -193,6 +335,15 @@ export class SkullGame {
     }
 
     const [ghostMesh, skullMesh, letterMesh] = group.children as Mesh[];
+    // Кадр анимации
+    const frame = skull.frames[Math.floor((this.time + skull.framePhase) / FRAME_TIME) % skull.frames.length];
+    (skullMesh.material as MeshBasicMaterial).map = frame;
+    (ghostMesh.material as MeshBasicMaterial).map = frame;
+    // Плавное появление
+    const fade = Math.min(1, skull.progress * skull.flightTime / FADE_IN_TIME);
+    (skullMesh.material as MeshBasicMaterial).opacity = SKULL_OPACITY * fade;
+    (ghostMesh.material as MeshBasicMaterial).opacity = 0.5 * fade;
+    (letterMesh.material as MeshBasicMaterial).opacity = fade;
     const bob = Math.sin(this.time * BOB_SPEED + skull.bobPhase) * BOB_AMPLITUDE * size;
     const letterBob = Math.sin(this.time * LETTER_BOB_SPEED + skull.letterBobPhase) * BOB_AMPLITUDE * size;
 

@@ -3,13 +3,25 @@
     <div class="hud-line">LEVEL {{ game.level() }} · {{ game.timeLeft() }}s</div>
     <button type="button" class="hud-button" (click)="game.leave()">Leave</button>
   </div>
+}
 
-  @if (game.hint().text; as text) {
-    <div [@showHide] class="hint regular-text">
-      {{ text }}
-      @if (game.hint().accent; as accent) {
-        <shaking-text [text]="accent" class="accent-text"></shaking-text>
-      }
+@if (game.phase() === 'playing' && game.hint().text; as text) {
+  <div [@showHide] class="hint regular-text">
+    {{ text }}
+    @if (game.hint().accent; as accent) {
+      <shaking-text [text]="accent" class="accent-text"></shaking-text>
+    }
+  </div>
+}
+
+@if (game.phase() === 'dead') {
+  <div [@showHide] class="screen">
+    <div class="death-title header-text">
+      <shaking-text text="YOU DIED"></shaking-text>
     </div>
-  }
+    <div class="screen-buttons regular-text">
+      <button type="button" class="screen-button accent-text" (click)="game.retry()">Try again</button>
+      <button type="button" class="screen-button accent-text" (click)="game.leave()">Leave</button>
+    </div>
+  </div>
 }

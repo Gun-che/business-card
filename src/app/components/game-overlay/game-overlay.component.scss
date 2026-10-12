@@ -24,6 +24,40 @@
   text-align: center;
 }
 
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  pointer-events: auto;
+}
+
+.death-title {
+  font-size: 3rem;
+  line-height: 3.6rem;
+  color: #ff2040;
+  text-shadow: 0 0 1.5rem rgba(255, 32, 64, 0.8), 0.1rem 0.25rem 0.05rem rgb(60, 0, 10);
+}
+
+.screen-buttons {
+  display: flex;
+  gap: 3rem;
+}
+
+.screen-button {
+  all: unset;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  transition: transform 0.2s;
+
+  &:hover {
+    transform: scale(1.15);
+  }
+}
+
 .hud-button {
   all: unset;
   cursor: pointer;

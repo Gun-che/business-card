@@ -70,6 +70,7 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
   const uCurveFlash = { value: 0.0 };
   const uMouse = { value: new Vector4() };
   const uGlitch = { value: 0.0 };
+  const uGame = { value: 0.0 };
   // xy — точка клика в пикселях буфера, z — радиус волны, w — сила
   const uGlitchWave = { value: new Vector4(0, 0, 0, 0) };
   let glitchBurst = 0;
@@ -89,6 +90,8 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
   const uForward = { value: new Vector3() };
 
   let curveAlphaTarget = 0;
+  // Во время игры клики отданы игре: волна и вспышка курсора по клику не нужны
+  let clickEffectsEnabled = true;
   // Внешние подписчики на кадр (мини-игра): dt и время в секундах
   const frameCallbacks = new Set<(dt: number, time: number) => void>();
   let pointerMoved = false;
@@ -126,7 +129,7 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
   }
 
   // Клик: волна глитча расходится из точки клика
-  function triggerLocalGlitch(nPosition: Vector2) {
+  function triggerLocalGlitch(nPosition: { x: number, y: number }) {
     const x = (nPosition.x * 0.5 + 0.5) * uResolution.value.x;
     const y = (nPosition.y * 0.5 + 0.5) * uResolution.value.y;
     uGlitchWave.value.set(x, y, 0, GLITCH_CLICK);
@@ -222,7 +225,7 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
       const geometry = new PlaneGeometry(2, 2);
       material = new ShaderMaterial({
         uniforms: {
-          uRatio, uSize, uPoints, uColor, uTime, uResolution, uCurveAlpha, uCurveFlash, uMouse, uGlitch, uGlitchWave,
+          uRatio, uSize, uPoints, uColor, uTime, uResolution, uCurveAlpha, uCurveFlash, uMouse, uGlitch, uGlitchWave, uGame,
           uWord, uWordRect, uWordStrength,
           uEye, uCenter, uCameraDir, uRight, uUp, uForward
         },
@@ -290,6 +293,9 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
       curveAlphaTarget = 0;
     },
     onPointerClick: ({ nPosition }) => {
+      if (!clickEffectsEnabled) {
+        return;
+      }
       triggerLocalGlitch(nPosition);
       uCurveFlash.value = CURVE_FLASH;
       // Как при быстром движении: цвет следа уходит в фиолетовый и плавно возвращается
@@ -316,6 +322,8 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
     switchScene,
     triggerStrongGlitch,
     triggerLocalGlitch,
+    setClickEffectsEnabled: (enabled: boolean) => clickEffectsEnabled = enabled,
+    setGameMode: (enabled: boolean) => uGame.value = enabled ? 1 : 0,
     showWord,
     addFrameCallback,
     scene: instance.scene,

@@ -14,6 +14,8 @@ uniform float uCurveFlash;
 uniform vec4 uMouse;
 // Сила глитча на весь экран: фоновый уровень маленький, F даёт вспышку
 uniform float uGlitch;
+// 1 — идёт мини-игра (сцены могут вести себя динамичнее)
+uniform float uGame;
 // Волна от клика: xy — центр в пикселях, z — радиус, w — сила
 uniform vec4 uGlitchWave;
 // Слово-эхо по клику на текст: текстура, прямоугольник (центр xy, размер zw), сила

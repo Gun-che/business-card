@@ -25,10 +25,16 @@ mat2 rot(float a) {
 
 // Туннель: квадратная труба из сетки, камера смотрит вглубь
 vec3 tunnel(vec2 uv, vec2 mouse, float t) {
-    // Поворот камеры мышью
+    // В игре камера сама покачивается, как будто мышью водят по кругу, и изредка дёргается
+    float cell = floor(t * 4.0);
+    float twitch = step(0.88, hash(vec2(cell, 2.0))) * (hash(vec2(cell, 3.0)) - 0.5) * 0.12;
+    float swayY = (sin(t * 0.8) * 0.18 + sin(t * 2.3) * 0.05 + twitch) * uGame;
+    float swayX = cos(t * 0.6) * 0.15 * uGame;
+
+    // Поворот камеры мышью поверх покачивания
     vec3 ray = normalize(vec3(uv, 0.8));
-    ray.yz *= rot(-mouse.y * 0.6);
-    ray.xy *= rot(mouse.x * 0.5);
+    ray.yz *= rot(-mouse.y * 0.6 + swayY);
+    ray.xy *= rot(mouse.x * 0.5 + swayX);
     ray.xy *= rot(t * 0.1);
 
     // Расстояние до стенок квадратной трубы радиуса 1
