@@ -18,6 +18,8 @@ uniform float uGlitch;
 uniform float uGame;
 // Пройденный путь по туннелю: вне игры растёт как время, в игре быстрее с уровнем
 uniform float uTravel;
+// Покачивание камеры туннеля (Holo glitch) в игре: xy — углы поворота
+uniform vec2 uSway;
 // Волна от клика: xy — центр в пикселях, z — радиус, w — сила
 uniform vec4 uGlitchWave;
 // Слово-эхо по клику на текст: текстура, прямоугольник (центр xy, размер zw), сила

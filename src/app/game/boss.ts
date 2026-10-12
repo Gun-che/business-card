@@ -33,7 +33,10 @@ const EXPLODE_SPLAT_SIZE = 0.08;
 export const BOSS_LETTER_TIME = 4;
 export const BOSS_LETTER_HITS = 10;
 const LETTER_POSITIONS = 8;
-const LETTER_RING_RADIUS = 0.82;
+// Кольцо букв — эллипс вокруг босса: полуоси в долях высоты экрана, по X ограничено краем экрана
+const LETTER_RING_RX = 1.05;
+const LETTER_RING_RY = 0.62;
+const LETTER_RING_MAX_X = 0.82;
 const LETTER_SIZE = 0.26;
 const LETTER_PULSE = 0.06;
 const COUNTER_SIZE = 0.11;
@@ -68,6 +71,8 @@ export class Boss {
   private pauseLeft = 0;
   private shakeTime = 0;
   private elapsed = 0;
+  // Время вышло: новые буквы не загораются, победа — когда добита текущая
+  private finishing = false;
   private state: BossState = 'alive';
 
   constructor(
@@ -118,9 +123,12 @@ export class Boss {
     }
 
     this.elapsed += dt;
-    if (this.elapsed >= this.duration) {
-      this.explode();
-      return this.state;
+    if (this.elapsed >= this.duration && !this.finishing) {
+      this.finishing = true;
+      if (!this.lit) {
+        this.explode();
+        return this.state;
+      }
     }
 
     this.placeSkull(time, aspect);
@@ -167,6 +175,10 @@ export class Boss {
 
     if (lit.hits >= BOSS_LETTER_HITS) {
       this.clearLetter();
+      if (this.finishing) {
+        this.explode();
+        return;
+      }
       this.pauseLeft = LETTER_PAUSE;
     }
   }
@@ -193,8 +205,8 @@ export class Boss {
     this.lastPosition = position;
 
     const angle = position / LETTER_POSITIONS * Math.PI * 2 + Math.PI / LETTER_POSITIONS;
-    const x = Math.cos(angle) * LETTER_RING_RADIUS / aspect;
-    const y = Math.sin(angle) * LETTER_RING_RADIUS;
+    const x = Math.cos(angle) * Math.min(LETTER_RING_RX / aspect, LETTER_RING_MAX_X);
+    const y = Math.sin(angle) * LETTER_RING_RY;
 
     const group = new Group();
     const letterMesh = this.sprite(textTexture(letter), 1);
@@ -231,11 +243,13 @@ export class Boss {
     const counter = (lit.counterMesh.material as MeshBasicMaterial).map.image as HTMLCanvasElement;
     const counterAspect = counter.width / counter.height;
     lit.counterMesh.scale.set(COUNTER_SIZE * counterAspect / aspect, COUNTER_SIZE, 1);
-    lit.counterMesh.position.set(0, -(LETTER_SIZE + COUNTER_SIZE) * 0.6, 0);
+    // В нижней половине экрана счётчик и таймер над буквой, чтобы не уходили за край
+    const below = lit.y >= 0 ? -1 : 1;
+    lit.counterMesh.position.set(0, below * (LETTER_SIZE + COUNTER_SIZE) * 0.6, 0);
     // Полоска времени тает слева направо
     const remaining = lit.timeLeft / BOSS_LETTER_TIME;
     lit.timerMesh.scale.set(TIMER_WIDTH * remaining / aspect, TIMER_HEIGHT, 1);
-    lit.timerMesh.position.set(-TIMER_WIDTH * (1 - remaining) / 2 / aspect, -(LETTER_SIZE + COUNTER_SIZE) * 0.6 - COUNTER_SIZE, 0);
+    lit.timerMesh.position.set(-TIMER_WIDTH * (1 - remaining) / 2 / aspect, below * ((LETTER_SIZE + COUNTER_SIZE) * 0.6 + COUNTER_SIZE), 0);
   }
 
   private placeSkull(time: number, aspect: number): void {

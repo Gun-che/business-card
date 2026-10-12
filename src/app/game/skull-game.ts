@@ -1,5 +1,5 @@
 import { Color, Group, Mesh, MeshBasicMaterial, PlaneGeometry, Scene, Texture } from 'three';
-import { createSkullTextures, disposeLetterTextures, letterTexture, SkullTexture } from './textures';
+import { createBossTexture, createSkullTextures, disposeLetterTextures, letterTexture, SkullTexture } from './textures';
 import { BOSS_HINT, BOSS_LEVEL, Hint, hintForHits, LEVEL_DURATION, LEVELS } from './levels';
 import { Boss } from './boss';
 import { ParticleSystem } from './particles';
@@ -7,6 +7,8 @@ import { ParticleSystem } from './particles';
 export interface SkullGameHost {
   scene: Scene;
   getAspect: () => number;
+  // Точка схода туннеля на экране (NDC) — откуда вылетают черепа
+  getTunnelCenter: () => { x: number, y: number };
   addFrameCallback: (callback: (dt: number, time: number) => void) => () => void;
   // Состояние для интерфейса: уровень, секунды до конца уровня, подсказка
   onStatus: (level: number, timeLeft: number, hint: Hint) => void;
@@ -61,8 +63,8 @@ const SKULL_SIZE_NEAR = 0.9;
 const LETTER_SIZE_RATIO = 0.45;
 // Насколько черепа разлетаются от центра к краям экрана
 const SPREAD = 0.9;
-// Разброс точки появления в центральной области (NDC)
-const SPAWN_SPREAD = 0.25;
+// Разброс точки появления вокруг дальней точки туннеля (NDC)
+const SPAWN_SPREAD = 0.12;
 // Прозрачность черепа — фон просвечивает
 const SKULL_OPACITY = 0.72;
 // Покачивание: амплитуда в долях размера, частоты в рад/с
@@ -109,6 +111,7 @@ export class SkullGame {
   private readonly root = new Group();
   private readonly geometry = new PlaneGeometry(1, 1);
   private readonly skullTextures: SkullTexture[] = createSkullTextures();
+  private readonly bossTexture: SkullTexture = createBossTexture();
   private readonly skulls: Skull[] = [];
   private readonly particles: ParticleSystem;
   private boss: Boss | null = null;
@@ -217,6 +220,7 @@ export class SkullGame {
     this.host.scene.remove(this.root);
     this.geometry.dispose();
     this.skullTextures.forEach(({ frames }) => frames.forEach(texture => texture.dispose()));
+    this.bossTexture.frames.forEach(texture => texture.dispose());
     disposeLetterTextures();
   }
 
@@ -300,7 +304,7 @@ export class SkullGame {
     this.levelIndex = BOSS_LEVEL - 1;
     this.host.glitchStrong();
     this.host.setTravelSpeed(1 + this.levelIndex * TRAVEL_SPEED_PER_LEVEL);
-    this.boss = new Boss(this.root, this.geometry, this.skullTextures[0], this.particles, this.host, LEVEL_DURATION);
+    this.boss = new Boss(this.root, this.geometry, this.bossTexture, this.particles, this.host, LEVEL_DURATION);
     this.lastReportedSecond = -1;
   }
 
@@ -351,6 +355,7 @@ export class SkullGame {
     group.add(ghostMesh, skullMesh, this.sprite(letterTexture(letter), 1));
     this.root.add(group);
 
+    const origin = this.host.getTunnelCenter();
     const angle = Math.random() * Math.PI * 2;
     const radius = 0.55 + Math.random() * 0.45;
     this.skulls.push({
@@ -360,8 +365,8 @@ export class SkullGame {
       flightTime,
       directionX: Math.cos(angle) * radius,
       directionY: Math.sin(angle) * radius,
-      originX: (Math.random() - 0.5) * 2 * SPAWN_SPREAD,
-      originY: (Math.random() - 0.5) * 2 * SPAWN_SPREAD,
+      originX: origin.x + (Math.random() - 0.5) * 2 * SPAWN_SPREAD,
+      originY: origin.y + (Math.random() - 0.5) * 2 * SPAWN_SPREAD,
       hitsLeft: hits,
       spriteScale: scale,
       frames,

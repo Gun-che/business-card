@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
+import { AchievementService } from 'src/app/services/achievement.service';
 import { Observable, Subject } from 'rxjs';
 import { Hint } from 'src/app/game/levels';
 
@@ -9,7 +10,7 @@ const HINT_FLASH_MS = 2500;
 const WIN_SCREEN_MS = 4000;
 
 // Что фон должен сделать с состоянием игры: уйти на сцену игры или вернуть прежнюю
-export type GameSceneRequest = 'enter' | 'restore' | 'retry';
+export type GameSceneRequest = 'enter' | 'restore' | 'retry' | 'showcase';
 
 // Ввод игрока: буква с клавиатуры или тап/клик в точке экрана (NDC)
 export type GameInput = { type: 'letter', letter: string } | { type: 'point', x: number, y: number };
@@ -19,6 +20,7 @@ export type GameInput = { type: 'letter', letter: string } | { type: 'point', x:
   providedIn: 'root'
 })
 export class GameService {
+  private readonly achievements: AchievementService = inject(AchievementService);
   public readonly phase = signal<GamePhase>('idle');
   // Строка «Don't press Z» появляется после первого нажатия F
   public readonly hintVisible = signal(false);
@@ -27,6 +29,8 @@ export class GameService {
   public readonly hint = signal<Hint>({ text: '', accent: '' });
   // Правило сменилось (число нажатий) — подсказка подсвечивается и трясётся
   public readonly hintFlash = signal(false);
+  // Витрина босса по клику на бейдж: идёт на заднем плане, повторный клик во время показа игнорируется
+  public readonly showcase = signal(false);
   private hintFlashTimer: ReturnType<typeof setTimeout> | null = null;
 
   private readonly sceneRequestSubject = new Subject<GameSceneRequest>();
@@ -51,11 +55,24 @@ export class GameService {
       return;
     }
     this.phase.set('won');
+    this.achievements.unlock('dungeonMaster');
     setTimeout(() => {
       if (this.phase() === 'won') {
         this.leave();
       }
     }, WIN_SCREEN_MS);
+  }
+
+  public showBoss(): void {
+    if (this.phase() !== 'idle' || this.showcase()) {
+      return;
+    }
+    this.showcase.set(true);
+    this.sceneRequestSubject.next('showcase');
+  }
+
+  public endShowcase(): void {
+    this.showcase.set(false);
   }
 
   public showHint(): void {

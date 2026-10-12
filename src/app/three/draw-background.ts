@@ -73,6 +73,7 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
   const uGame = { value: 0.0 };
   const uTravel = { value: 0.0 };
   let travelSpeed = 1;
+  const uSway = { value: new Vector2() };
   // xy — точка клика в пикселях буфера, z — радиус волны, w — сила
   const uGlitchWave = { value: new Vector4(0, 0, 0, 0) };
   let glitchBurst = 0;
@@ -128,6 +129,38 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
     const x = (head.x / uRatio.value.x + 0.5) * uResolution.value.x;
     const y = (head.y / uRatio.value.y + 0.5) * uResolution.value.y;
     uMouse.value.set(x, y, pointerMoved ? x : 0, pointerMoved ? y : 0);
+  }
+
+  // Та же hash(vec2), что в шейдерах сцен
+  function sceneHash(x: number, y: number): number {
+    const fract = (v: number) => v - Math.floor(v);
+    let px = fract(x * 123.34);
+    let py = fract(y * 456.21);
+    const d = px * (px + 45.32) + py * (py + 45.32);
+    px += d;
+    py += d;
+    return fract(px * py);
+  }
+
+  // В игре камера туннеля сама покачивается, как будто мышью водят по кругу, и изредка дёргается
+  function updateSway() {
+    const t = uTime.value;
+    const game = uGame.value;
+    const cell = Math.floor(t * 4);
+    const twitch = (sceneHash(cell, 2) >= 0.88 ? 1 : 0) * (sceneHash(cell, 3) - 0.5) * 0.12;
+    uSway.value.set(
+      Math.cos(t * 0.6) * 0.15 * game,
+      (Math.sin(t * 0.8) * 0.18 + Math.sin(t * 2.3) * 0.05 + twitch) * game
+    );
+  }
+
+  // Точка схода туннеля Holo glitch на экране (NDC): при наклоне камеры уходит вверх или вниз.
+  // Наклон по вертикали — угол a = -mouse.y * 0.6 + sway.y, луч (0, y, 0.8) смотрит вдоль туннеля при y = 0.8 * tan(a)
+  function getTunnelCenter(): { x: number, y: number } {
+    const head = uPoints.value[0];
+    const mouseY = head.y / uRatio.value.y;
+    const angle = -mouseY * 0.6 + uSway.value.y;
+    return { x: 0, y: 1.6 * Math.tan(angle) };
   }
 
   // Клик: волна глитча расходится из точки клика
@@ -232,7 +265,7 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
       const geometry = new PlaneGeometry(2, 2);
       material = new ShaderMaterial({
         uniforms: {
-          uRatio, uSize, uPoints, uColor, uTime, uResolution, uCurveAlpha, uCurveFlash, uMouse, uGlitch, uGlitchWave, uGame, uTravel,
+          uRatio, uSize, uPoints, uColor, uTime, uResolution, uCurveAlpha, uCurveFlash, uMouse, uGlitch, uGlitchWave, uGame, uTravel, uSway,
           uWord, uWordRect, uWordStrength,
           uEye, uCenter, uCameraDir, uRight, uUp, uForward
         },
@@ -284,6 +317,7 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
       // Кадры дольше 0.2с (вкладка была скрыта) не учитываем, чтобы камера не прыгала
       updateCamera(Math.min(clock.elapsed, 200) / 1000);
       updateMouse();
+      updateSway();
     },
     onPointerMove({ nPosition, delta }) {
       curveAlphaTarget = 1;
@@ -338,6 +372,7 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
     addFrameCallback,
     scene: instance.scene,
     getAspect: () => instance.width / instance.height,
+    getTunnelCenter,
     dispose
   };
 }

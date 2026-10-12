@@ -6,6 +6,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { wordAtPoint } from 'src/app/utils/word-at-point';
 import { GameService } from 'src/app/services/game.service';
 import type { SkullGame } from 'src/app/game/skull-game';
+import type { BossShowcase } from 'src/app/game/boss-showcase';
 import { Vector2 } from 'three';
 
 
@@ -92,7 +93,40 @@ export class BackgroundComponent implements AfterViewInit {
     };
     this.destroyRef.onDestroy(stopGame);
 
+    // Витрина босса по клику на бейдж — на текущей сцене, без переключения
+    let showcase: BossShowcase | null = null;
+    const stopShowcase = () => {
+      showcase?.dispose();
+      showcase = null;
+    };
+    this.destroyRef.onDestroy(stopShowcase);
+    const runShowcase = async () => {
+      const { BossShowcase } = await import('src/app/game/boss-showcase');
+      if (this.destroyed) {
+        return;
+      }
+      stopShowcase();
+      background.setClickEffectsEnabled(false);
+      showcase = new BossShowcase({
+        scene: background.scene,
+        getAspect: background.getAspect,
+        addFrameCallback: background.addFrameCallback,
+        glitchStrong: triggerStrongGlitch,
+        glitchWave: (x, y) => triggerLocalGlitch({ x, y }),
+        onDone: () => {
+          stopShowcase();
+          background.setClickEffectsEnabled(true);
+          this.ngZone.run(() => this.gameService.endShowcase());
+        }
+      });
+      showcase.start();
+    };
+
     this.gameService.sceneRequest$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async request => {
+      if (request === 'showcase') {
+        runShowcase();
+        return;
+      }
       if (request === 'enter') {
         sceneBeforeGame = index;
         index = gameSceneIndex;
@@ -106,6 +140,7 @@ export class BackgroundComponent implements AfterViewInit {
         game = new SkullGame({
           scene: background.scene,
           getAspect: background.getAspect,
+          getTunnelCenter: background.getTunnelCenter,
           addFrameCallback: background.addFrameCallback,
           onStatus: (level, timeLeft, hint) => this.ngZone.run(() => this.gameService.setStatus(level, timeLeft, hint)),
           onDeath: () => this.ngZone.run(() => this.gameService.die()),

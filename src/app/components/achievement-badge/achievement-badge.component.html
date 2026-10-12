@@ -1,0 +1,10 @@
+@if (game.phase() === 'idle' && achievements.has('dungeonMaster')) {
+  <button type="button" [@showHide] class="badge" title="Dungeon master" aria-label="Achievement: Dungeon master" (click)="game.showBoss()">
+    <svg class="skull" [attr.viewBox]="'0 0 ' + size + ' ' + size" shape-rendering="crispEdges">
+      @for (pixel of pixels; track $index) {
+        <rect [attr.x]="pixel.x" [attr.y]="pixel.y" width="1" height="1" [attr.class]="'pixel-' + pixel.kind"/>
+      }
+    </svg>
+    <div class="label accent-text">Dungeon master</div>
+  </button>
+}
