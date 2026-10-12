@@ -1,4 +1,4 @@
-@if (game.phase() === 'idle' && achievements.has('dungeonMaster')) {
+@if (game.phase() === 'idle' && !game.showcase() && achievements.has('dungeonMaster')) {
   <button type="button" [@showHide] class="badge" title="Dungeon master" aria-label="Achievement: Dungeon master" (click)="game.showBoss()">
     <svg class="skull" [attr.viewBox]="'0 0 ' + size + ' ' + size" shape-rendering="crispEdges">
       @for (pixel of pixels; track $index) {

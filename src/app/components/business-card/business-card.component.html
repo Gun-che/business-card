@@ -3,7 +3,7 @@
     <div [@showHide] class="loading header-text">
       <shaking-text class="text" text="Loading..."></shaking-text>
     </div>
-  } @else if (game.phase() === 'idle') {
+  } @else if (game.phase() === 'idle' && !game.showcase()) {
     <div [@showHide] class="main-grid">
       <div class="logo" (click)="glitch()">
         <img [attr.src]="logoUrl" alt="Vanya Goncharov" draggable="false">

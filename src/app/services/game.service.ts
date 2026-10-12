@@ -29,7 +29,7 @@ export class GameService {
   public readonly hint = signal<Hint>({ text: '', accent: '' });
   // Правило сменилось (число нажатий) — подсказка подсвечивается и трясётся
   public readonly hintFlash = signal(false);
-  // Витрина босса по клику на бейдж: идёт на заднем плане, повторный клик во время показа игнорируется
+  // Витрина босса по клику на бейдж: интерфейс на это время прячется
   public readonly showcase = signal(false);
   private hintFlashTimer: ReturnType<typeof setTimeout> | null = null;
 
