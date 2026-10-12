@@ -48,7 +48,10 @@ export class BackgroundComponent implements AfterViewInit {
       return;
     }
 
-    const previewName = new URLSearchParams(window.location.search).get('bg');
+    const params = new URLSearchParams(window.location.search);
+    const previewName = params.get('bg');
+    // Отладка: с какого уровня начинать игру
+    const startLevel = Number(params.get('level')) || 1;
     let index = Math.max(0, backgroundScenes.findIndex(scene => scene.name === previewName));
 
     const background = drawBackground({
@@ -106,6 +109,7 @@ export class BackgroundComponent implements AfterViewInit {
           addFrameCallback: background.addFrameCallback,
           onStatus: (level, timeLeft, hint) => this.ngZone.run(() => this.gameService.setStatus(level, timeLeft, hint)),
           onDeath: () => this.ngZone.run(() => this.gameService.die()),
+          onWin: () => this.ngZone.run(() => this.gameService.win()),
           glitchWave: (x, y) => triggerLocalGlitch({ x, y }),
           glitchStrong: triggerStrongGlitch,
           glitch: triggerGlitch,
@@ -113,9 +117,9 @@ export class BackgroundComponent implements AfterViewInit {
         });
         background.setClickEffectsEnabled(false);
         background.setGameMode(true);
-        game.start();
+        game.start(startLevel);
       } else if (request === 'retry') {
-        game?.start();
+        game?.start(startLevel);
       } else {
         stopGame();
         background.setClickEffectsEnabled(true);

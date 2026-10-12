@@ -32,6 +32,8 @@ export interface Hint {
   accent: string;
 }
 
+export const BOSS_HINT: Hint = { text: 'Press the lit key', accent: '10 times' };
+
 export function hintForHits(hits: number): Hint {
   switch (hits) {
     case 1:

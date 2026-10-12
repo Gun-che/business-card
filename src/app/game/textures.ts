@@ -267,30 +267,36 @@ function createSkullTexture(pixels: string[]): CanvasTexture {
   return pixelTexture(canvas);
 }
 
-// Текстуры букв кэшируем: их всего 26
+// Текстуры текста кэшируем: буквы и счётчики босса — небольшой фиксированный набор
 const letterTextures = new Map<string, Texture>();
 
-export function letterTexture(letter: string): Texture {
-  const cached = letterTextures.get(letter);
+export function textTexture(text: string): Texture {
+  const cached = letterTextures.get(text);
   if (cached) {
     return cached;
   }
 
+  const font = `bold ${LETTER_FONT_PX}px DogicaPixel, monospace`;
   const canvas = document.createElement('canvas');
-  canvas.width = LETTER_FONT_PX * 1.5;
-  canvas.height = LETTER_FONT_PX * 1.5;
   const context = canvas.getContext('2d');
-  context.font = `bold ${LETTER_FONT_PX}px DogicaPixel, monospace`;
+  context.font = font;
+  canvas.width = Math.max(LETTER_FONT_PX * 1.5, Math.ceil(context.measureText(text).width) + LETTER_FONT_PX * 0.5);
+  canvas.height = LETTER_FONT_PX * 1.5;
+  context.font = font;
   context.textAlign = 'center';
   context.textBaseline = 'middle';
   context.shadowColor = LETTER_SHADOW;
   context.shadowBlur = 8;
   context.fillStyle = LETTER_COLOR;
-  context.fillText(letter, canvas.width / 2, canvas.height / 2);
+  context.fillText(text, canvas.width / 2, canvas.height / 2);
 
   const texture = pixelTexture(canvas);
-  letterTextures.set(letter, texture);
+  letterTextures.set(text, texture);
   return texture;
+}
+
+export function letterTexture(letter: string): Texture {
+  return textTexture(letter);
 }
 
 export function disposeLetterTextures(): void {

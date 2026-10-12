@@ -5,6 +5,8 @@ import { Hint } from 'src/app/game/levels';
 export type GamePhase = 'idle' | 'playing' | 'dead' | 'won';
 
 const HINT_FLASH_MS = 2500;
+// Сколько показывать экран победы перед возвратом на визитку
+const WIN_SCREEN_MS = 4000;
 
 // Что фон должен сделать с состоянием игры: уйти на сцену игры или вернуть прежнюю
 export type GameSceneRequest = 'enter' | 'restore' | 'retry';
@@ -42,6 +44,18 @@ export class GameService {
     if (this.phase() === 'playing') {
       this.phase.set('dead');
     }
+  }
+
+  public win(): void {
+    if (this.phase() !== 'playing') {
+      return;
+    }
+    this.phase.set('won');
+    setTimeout(() => {
+      if (this.phase() === 'won') {
+        this.leave();
+      }
+    }, WIN_SCREEN_MS);
   }
 
   public showHint(): void {

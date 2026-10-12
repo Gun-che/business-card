@@ -1,6 +1,7 @@
 import { Color, Group, Mesh, MeshBasicMaterial, PlaneGeometry, Scene, Texture } from 'three';
 import { createSkullTextures, disposeLetterTextures, letterTexture, SkullTexture } from './textures';
-import { Hint, hintForHits, LEVEL_DURATION, LEVELS } from './levels';
+import { BOSS_HINT, BOSS_LEVEL, Hint, hintForHits, LEVEL_DURATION, LEVELS } from './levels';
+import { Boss } from './boss';
 import { ParticleSystem } from './particles';
 
 export interface SkullGameHost {
@@ -11,6 +12,8 @@ export interface SkullGameHost {
   onStatus: (level: number, timeLeft: number, hint: Hint) => void;
   // Череп долетел до камеры
   onDeath: () => void;
+  // Босс повержен
+  onWin: () => void;
   // Глитч-волна из точки (NDC), сильная вспышка на весь экран и вспышка заданной силы
   glitchWave: (x: number, y: number) => void;
   glitchStrong: () => void;
@@ -108,6 +111,7 @@ export class SkullGame {
   private readonly skullTextures: SkullTexture[] = createSkullTextures();
   private readonly skulls: Skull[] = [];
   private readonly particles: ParticleSystem;
+  private boss: Boss | null = null;
   // После смерти всё замирает, живут только брызги
   private frozen = false;
   private bloodCount = 0;
@@ -130,6 +134,10 @@ export class SkullGame {
     if (this.frozen) {
       return;
     }
+    if (this.boss) {
+      this.boss.pressLetter(letter);
+      return;
+    }
     const index = this.skulls.findIndex(skull => skull.letter === letter);
     if (index >= 0) {
       this.hitSkull(index);
@@ -143,6 +151,9 @@ export class SkullGame {
     }
     const aspect = this.host.getAspect();
     const minRadius = MIN_TAP_RADIUS_PX / viewportHeight * 2;
+    if (this.boss) {
+      return this.boss.pressAt(x, y, aspect, minRadius);
+    }
     let best = -1;
     // Из попавших в зону берём ближний к камере
     this.skulls.forEach((skull, index) => {
@@ -182,8 +193,17 @@ export class SkullGame {
     }
   }
 
-  public start(): void {
+  // startLevel — с какого уровня начать (отладка: ?level=N)
+  public start(startLevel: number = 1): void {
     this.reset();
+    const level = Math.min(Math.max(1, Math.floor(startLevel)), BOSS_LEVEL);
+    if (level === BOSS_LEVEL) {
+      this.levelIndex = LEVELS.length - 1;
+      this.startBoss();
+    } else {
+      this.levelIndex = level - 1;
+      this.host.setTravelSpeed(1 + this.levelIndex * TRAVEL_SPEED_PER_LEVEL);
+    }
     this.removeFrameCallback();
     this.removeFrameCallback = this.host.addFrameCallback((dt, time) => this.update(dt, time));
     this.reportStatus();
@@ -192,6 +212,7 @@ export class SkullGame {
   public dispose(): void {
     this.removeFrameCallback();
     this.clearSkulls();
+    this.clearBoss();
     this.particles.dispose();
     this.host.scene.remove(this.root);
     this.geometry.dispose();
@@ -201,6 +222,7 @@ export class SkullGame {
 
   private reset(): void {
     this.clearSkulls();
+    this.clearBoss();
     this.particles.clear();
     this.frozen = false;
     this.host.setTravelSpeed(1);
@@ -228,12 +250,21 @@ export class SkullGame {
       }
       return;
     }
+    if (this.boss) {
+      this.updateBoss(dt, time, aspect);
+      return;
+    }
+
     const level = LEVELS[this.levelIndex];
 
     this.levelTime += dt;
-    if (this.levelTime >= LEVEL_DURATION && this.levelIndex < LEVELS.length - 1) {
-      this.levelIndex++;
+    if (this.levelTime >= LEVEL_DURATION) {
       this.levelTime -= LEVEL_DURATION;
+      if (this.levelIndex === LEVELS.length - 1) {
+        this.startBoss();
+        return;
+      }
+      this.levelIndex++;
       // Пауз нет — смену уровня отмечает вспышка и разгон туннеля
       this.host.glitch(LEVEL_GLITCH);
       this.host.setTravelSpeed(1 + this.levelIndex * TRAVEL_SPEED_PER_LEVEL);
@@ -259,10 +290,45 @@ export class SkullGame {
     this.reportStatus();
   }
 
+  private startBoss(): void {
+    // Оставшиеся черепа взрываются — сцена очищается под босса
+    while (this.skulls.length > 0) {
+      const skull = this.skulls[this.skulls.length - 1];
+      this.particles.burst(skull.x, skull.y, EXPLODE_COUNT, EXPLODE_SPEED * skull.size, PARTICLE_SIZE * skull.size);
+      this.removeSkull(this.skulls.length - 1);
+    }
+    this.levelIndex = BOSS_LEVEL - 1;
+    this.host.glitchStrong();
+    this.host.setTravelSpeed(1 + this.levelIndex * TRAVEL_SPEED_PER_LEVEL);
+    this.boss = new Boss(this.root, this.geometry, this.skullTextures[0], this.particles, this.host, LEVEL_DURATION);
+    this.lastReportedSecond = -1;
+  }
+
+  private updateBoss(dt: number, time: number, aspect: number): void {
+    this.levelTime += dt;
+    const state = this.boss.update(dt, time, aspect);
+    if (state === 'failed') {
+      this.die();
+      return;
+    }
+    if (state === 'won') {
+      this.frozen = true;
+      this.host.onWin();
+      return;
+    }
+    this.reportStatus();
+  }
+
+  private clearBoss(): void {
+    this.boss?.dispose();
+    this.boss = null;
+  }
+
   private die(): void {
     this.frozen = true;
     // На экране смерти черепа не нужны, брызги дотлевают, экран заливает кровь
     this.skulls.forEach(skull => skull.group.visible = false);
+    this.boss?.hide();
     this.particles.blood(BLOOD_INITIAL, this.host.getAspect());
     this.bloodCount = BLOOD_INITIAL;
     this.host.glitchStrong();
@@ -397,6 +463,7 @@ export class SkullGame {
       return;
     }
     this.lastReportedSecond = timeLeft;
-    this.host.onStatus(this.levelIndex + 1, timeLeft, hintForHits(LEVELS[this.levelIndex].hits));
+    const hint = this.boss ? BOSS_HINT : hintForHits(LEVELS[this.levelIndex].hits);
+    this.host.onStatus(this.levelIndex + 1, timeLeft, hint);
   }
 }

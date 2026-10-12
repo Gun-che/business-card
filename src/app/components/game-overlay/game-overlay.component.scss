@@ -15,14 +15,21 @@
   pointer-events: auto;
 }
 
-// Подсказка — там же, где на визитке стоит строка про F
+// Подсказка — крупно, на уровне трёх четвертей экрана от верха
 .hint {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 2rem;
+  top: 75%;
   text-align: center;
+  font-size: 1.6rem;
+  line-height: 2.2rem;
+  padding: 0 1rem;
   transition: transform 0.3s;
+
+  .accent-text {
+    font-size: 1.6rem;
+  }
 }
 
 // Правило сменилось — подсказка крупнее и вся акцентная
@@ -46,6 +53,13 @@
   line-height: 3.6rem;
   color: #ff2040;
   text-shadow: 0 0 1.5rem rgba(255, 32, 64, 0.8), 0.1rem 0.25rem 0.05rem rgb(60, 0, 10);
+}
+
+.win-title {
+  font-size: 2.2rem;
+  line-height: 3rem;
+  text-align: center;
+  padding: 0 1rem;
 }
 
 .screen-buttons {
