@@ -86,8 +86,9 @@ export class BackgroundComponent implements AfterViewInit {
     this.destroyRef.onDestroy(dispose);
     this.glitchService.burst$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(triggerStrongGlitch);
 
-    // Игра идёт на сцене Holo glitch; после выхода возвращаем сцену, которая была до игры
+    // Игра идёт на сцене Holo glitch; после выхода фон сбрасывается на базовый город
     const gameSceneIndex = backgroundScenes.findIndex(scene => scene.name === 'holo');
+    const homeSceneIndex = Math.max(0, backgroundScenes.findIndex(scene => scene.name === 'city'));
     const loadGame = () => import('src/app/game/skull-game');
 
     // Индикатор горит, пока компилируется шейдер первой сцены. Затем, пока пользователь читает визитку,
@@ -98,6 +99,7 @@ export class BackgroundComponent implements AfterViewInit {
       }
       background.prewarmScene(backgroundScenes[index]);
       background.prewarmScene(backgroundScenes[gameSceneIndex]);
+      background.prewarmScene(backgroundScenes[homeSceneIndex]);
       loadGame().catch(() => {});
     });
 
@@ -114,7 +116,6 @@ export class BackgroundComponent implements AfterViewInit {
     document.addEventListener('click', onClick);
     this.destroyRef.onDestroy(() => document.removeEventListener('click', onClick));
 
-    let sceneBeforeGame = index;
     let game: SkullGame | null = null;
     const stopGame = () => {
       game?.dispose();
@@ -152,7 +153,6 @@ export class BackgroundComponent implements AfterViewInit {
     };
 
     const startGame = async () => {
-      sceneBeforeGame = index;
       index = gameSceneIndex;
       switchScene(backgroundScenes[index], showLabel);
       // Чанк игры и шейдер сцены обычно уже прогреты; если нет — на это время горит «Loading...»
@@ -213,8 +213,9 @@ export class BackgroundComponent implements AfterViewInit {
         background.setClickEffectsEnabled(true);
         background.setGameMode(false);
         background.setTravelSpeed(1);
-        index = sceneBeforeGame;
-        switchScene(backgroundScenes[index], showLabel);
+        index = homeSceneIndex;
+        // Если фон был выбран в адресе (?bg=), адрес тоже сбрасываем — иначе он врёт о текущей сцене
+        switchScene(backgroundScenes[index], new URL(window.location.href).searchParams.has('bg') ? showLabelAndUrl : showLabel);
       }
     };
     pendingRequests.splice(0).forEach(handleRequest);

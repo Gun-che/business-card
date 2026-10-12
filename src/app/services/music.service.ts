@@ -31,6 +31,11 @@ export class MusicService {
     this.player.pause();
   }
 
+  // Зацикливание: трек, закончившийся во время игры, начинается заново
+  public setLoop(loop: boolean): void {
+    this.player.loop = loop;
+  }
+
   public setVolume(volume: number): void {
     this.player.volume = volume;
   }

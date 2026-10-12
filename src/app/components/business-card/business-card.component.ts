@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, HostListener, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, HostListener, inject, OnInit, signal } from '@angular/core';
 import { ShakingTextComponent } from 'src/app/components/shaking-text/shaking-text.component';
 import { MusicService } from 'src/app/services/music.service';
 import { GlitchService } from 'src/app/services/glitch.service';
@@ -27,6 +27,11 @@ export class BusinessCardComponent implements OnInit {
   public readonly logoUrl = 'assets/images/vg4.webp';
   // Держим ссылку на декодированную картинку, чтобы браузер не выкидывал её из кэша декодирования
   private readonly logo = new Image();
+
+  constructor() {
+    // Во время игры трек крутится по кругу; вне игры доигрывает и останавливается, как раньше
+    effect(() => this.musicService.setLoop(this.game.phase() !== 'idle'));
+  }
 
   public ngOnInit(): void {
     this.musicService.setAudio('assets/music/new-slaves.mp3');
