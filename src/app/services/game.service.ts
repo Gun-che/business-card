@@ -1,7 +1,7 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { AchievementService } from 'src/app/services/achievement.service';
 import { Observable, Subject } from 'rxjs';
-import { Hint, LEVELS } from 'src/app/game/levels';
+import { BOSS_INTRO, BOSS_LEVEL, Hint, LEVELS } from 'src/app/game/levels';
 
 export type GamePhase = 'idle' | 'playing' | 'dead' | 'won';
 
@@ -134,7 +134,9 @@ export class GameService {
     if (this.levelBannerTimer !== null) {
       clearTimeout(this.levelBannerTimer);
     }
-    this.levelBannerTimer = setTimeout(() => this.levelBanner.set(false), LEVEL_BANNER_MS);
+    // Надпись BOSS висит всю паузу перед боссом
+    const duration = this.level() >= BOSS_LEVEL ? BOSS_INTRO * 1000 : LEVEL_BANNER_MS;
+    this.levelBannerTimer = setTimeout(() => this.levelBanner.set(false), duration);
   }
 
   private flashHint(): void {

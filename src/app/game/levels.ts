@@ -13,6 +13,8 @@ export interface LevelConfig {
 
 // Длительность уровня с боссом, с
 export const BOSS_DURATION = 30;
+// Пауза перед боссом: висит крупная надпись BOSS, буквы ещё не горят, таймер уровня стоит, с
+export const BOSS_INTRO = 2;
 
 // Буквы, которые загораются на черепах и у босса. M и N убраны: в пиксельном шрифте DogicaPixel их трудно различить
 export const GAME_LETTERS = 'ABCDEFGHIJKLOPQRSTUVWXYZ';

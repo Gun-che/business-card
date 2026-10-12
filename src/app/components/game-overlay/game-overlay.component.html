@@ -20,7 +20,7 @@
 }
 
 @if (game.phase() === 'playing' && game.levelBanner()) {
-  <div [@levelBanner] class="level-banner header-text">
+  <div [@levelBanner] class="level-banner header-text" [class.level-banner-boss]="game.level() >= 10">
     <shaking-text [text]="game.level() >= 10 ? 'BOSS' : 'LEVEL ' + game.level()"></shaking-text>
   </div>
 }

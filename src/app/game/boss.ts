@@ -1,7 +1,7 @@
 import { Color, Group, Mesh, MeshBasicMaterial, PlaneGeometry, Texture } from 'three';
 import { SkullTexture, textTexture } from './textures';
 import { ParticleSystem } from './particles';
-import { GAME_LETTERS } from './levels';
+import { BOSS_INTRO, GAME_LETTERS } from './levels';
 
 export interface BossHost {
   glitchWave: (x: number, y: number) => void;
@@ -75,6 +75,8 @@ export class Boss {
   private lastLetter = '';
   private lastPosition = -1;
   private pauseLeft = 0;
+  // Пауза перед боем: череп уже на экране, но буквы не горят и время уровня не идёт
+  private introLeft = BOSS_INTRO;
   private shakeTime = 0;
   private elapsed = 0;
   // Время вышло: новые буквы не загораются, победа — когда добита текущая
@@ -94,6 +96,10 @@ export class Boss {
     this.skullMesh = this.sprite(skull.frames[0], BOSS_OPACITY);
     this.group.add(this.skullMesh);
     root.add(this.group);
+  }
+
+  public get inIntro(): boolean {
+    return this.introLeft > 0;
   }
 
   public get isAlive(): boolean {
@@ -125,6 +131,12 @@ export class Boss {
 
   public update(dt: number, time: number, aspect: number): BossState {
     if (this.state !== 'alive') {
+      return this.state;
+    }
+
+    if (this.introLeft > 0) {
+      this.introLeft -= dt;
+      this.placeSkull(time, aspect);
       return this.state;
     }
 

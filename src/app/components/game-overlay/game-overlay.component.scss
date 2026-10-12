@@ -50,6 +50,14 @@
   pointer-events: none;
 }
 
+// Перед боссом — крупнее и красным, как YOU DIED
+.level-banner-boss {
+  font-size: 6rem;
+  line-height: 7rem;
+  color: #ff2040;
+  text-shadow: 0 0 1.5rem rgba(255, 32, 64, 0.8), 0.15rem 0.35rem 0.05rem rgb(60, 0, 10);
+}
+
 // На боссе буквы занимают середину экрана — подсказка уходит к нижнему краю
 .hint-bottom {
   top: auto;

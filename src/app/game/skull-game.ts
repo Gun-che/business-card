@@ -317,7 +317,10 @@ export class SkullGame {
   }
 
   private updateBoss(dt: number, time: number, aspect: number): void {
-    this.levelTime += dt;
+    // Во время паузы перед боссом таймер уровня стоит
+    if (!this.boss.inIntro) {
+      this.levelTime += dt;
+    }
     const state = this.boss.update(dt, time, aspect);
     if (state === 'failed') {
       this.die();
