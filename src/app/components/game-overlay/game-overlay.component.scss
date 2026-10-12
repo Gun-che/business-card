@@ -28,8 +28,20 @@
   transition: transform 0.3s;
 
   .accent-text {
-    font-size: 1.6rem;
+    font-size: inherit;
   }
+
+  // На узких экранах мельче, чтобы не уходить за край
+  @media screen and (max-width: 600px) {
+    font-size: 1.1rem;
+    line-height: 1.6rem;
+  }
+}
+
+// На боссе буквы занимают середину экрана — подсказка уходит к нижнему краю
+.hint-bottom {
+  top: auto;
+  bottom: 1.5rem;
 }
 
 // Правило сменилось — подсказка крупнее и вся акцентная

@@ -5,12 +5,16 @@ import { ParticleSystem } from './particles';
 export interface BossHost {
   glitchWave: (x: number, y: number) => void;
   glitchStrong: () => void;
+  onHit: () => void;
+  onExplode: () => void;
 }
 
 export type BossState = 'alive' | 'failed' | 'won';
 
 // Размеры в долях высоты экрана (NDC: высота экрана = 2)
 const BOSS_SIZE = 1.4;
+// На узких экранах босс ужимается: его ширина не больше этой доли ширины экрана (NDC, экран = 2)
+const BOSS_MAX_WIDTH = 1.7;
 const BOSS_OPACITY = 0.72;
 // Покачивание босса
 const HOVER_AMPLITUDE = 0.04;
@@ -35,8 +39,10 @@ export const BOSS_LETTER_HITS = 10;
 const LETTER_POSITIONS = 8;
 // Кольцо букв — эллипс вокруг босса: полуоси в долях высоты экрана, по X ограничено краем экрана
 const LETTER_RING_RX = 1.05;
-const LETTER_RING_RY = 0.62;
-const LETTER_RING_MAX_X = 0.82;
+const LETTER_RING_RY = 0.55;
+// Отступ группы «буква + счётчик + таймер» от края экрана (NDC) и её полуширина в долях высоты
+const SCREEN_MARGIN = 0.05;
+const LETTER_GROUP_HALF_WIDTH = 0.16;
 const LETTER_SIZE = 0.26;
 const LETTER_PULSE = 0.06;
 const COUNTER_SIZE = 0.11;
@@ -167,6 +173,7 @@ export class Boss {
     lit.hits++;
     this.shakeTime = SHAKE_TIME;
     this.host.glitchWave(lit.x, lit.y);
+    this.host.onHit();
     // Брызги из случайной точки на черепе
     const px = (Math.random() - 0.5) * BOSS_SIZE * 0.5 / this.aspectOf(this.skullMesh);
     const py = (Math.random() - 0.5) * BOSS_SIZE * 0.5;
@@ -189,6 +196,7 @@ export class Boss {
     this.particles.burst(0, 0, EXPLODE_PARTICLES, EXPLODE_SPEED, EXPLODE_PARTICLE_SIZE);
     this.particles.splat(EXPLODE_SPLATS, EXPLODE_SPLAT_SIZE, this.aspectOf(this.skullMesh));
     this.host.glitchStrong();
+    this.host.onExplode();
   }
 
   private lightLetter(aspect: number): void {
@@ -205,7 +213,9 @@ export class Boss {
     this.lastPosition = position;
 
     const angle = position / LETTER_POSITIONS * Math.PI * 2 + Math.PI / LETTER_POSITIONS;
-    const x = Math.cos(angle) * Math.min(LETTER_RING_RX / aspect, LETTER_RING_MAX_X);
+    // Эллипс вокруг босса, но вся группа с буквой и счётчиком остаётся на экране с запасом
+    const maxX = 1 - SCREEN_MARGIN - LETTER_GROUP_HALF_WIDTH / aspect;
+    const x = Math.cos(angle) * Math.min(LETTER_RING_RX / aspect, maxX);
     const y = Math.sin(angle) * LETTER_RING_RY;
 
     const group = new Group();
@@ -255,7 +265,7 @@ export class Boss {
   private placeSkull(time: number, aspect: number): void {
     const frame = this.frames[Math.floor(time / FRAME_TIME) % this.frames.length];
     (this.skullMesh.material as MeshBasicMaterial).map = frame;
-    const size = BOSS_SIZE * this.spriteScale;
+    const size = Math.min(BOSS_SIZE, BOSS_MAX_WIDTH * aspect) * this.spriteScale;
     this.skullMesh.scale.set(size / aspect, size, 1);
     const hover = Math.sin(time * HOVER_SPEED) * HOVER_AMPLITUDE;
     const shake = this.shakeTime / SHAKE_TIME * SHAKE_AMPLITUDE;

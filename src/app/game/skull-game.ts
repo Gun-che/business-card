@@ -16,6 +16,9 @@ export interface SkullGameHost {
   onDeath: () => void;
   // Босс повержен
   onWin: () => void;
+  // Звуки: попадание и уничтожение черепа (смерть и победа — через onDeath/onWin)
+  onHit: () => void;
+  onExplode: () => void;
   // Глитч-волна из точки (NDC), сильная вспышка на весь экран и вспышка заданной силы
   glitchWave: (x: number, y: number) => void;
   glitchStrong: () => void;
@@ -177,14 +180,16 @@ export class SkullGame {
   private hitSkull(index: number): void {
     const skull = this.skulls[index];
     skull.hitsLeft--;
-    // Волна глитча — при каждом попадании
+    // Волна глитча и звук — при каждом попадании
     this.host.glitchWave(skull.x, skull.y);
+    this.host.onHit();
     if (skull.hitsLeft > 0) {
       skull.shakeTime = SHAKE_TIME;
       this.particles.burst(skull.x, skull.y, EXPLODE_COUNT * SPLASH_RATIO, EXPLODE_SPEED * skull.size, PARTICLE_SIZE * skull.size);
       return;
     }
     this.particles.burst(skull.x, skull.y, EXPLODE_COUNT, EXPLODE_SPEED * skull.size, PARTICLE_SIZE * skull.size);
+    this.host.onExplode();
     if (skull.progress >= SPLAT_PROGRESS) {
       const count = SPLAT_COUNT_MIN + Math.floor(Math.random() * (SPLAT_COUNT_MAX - SPLAT_COUNT_MIN + 1));
       this.particles.splat(count, SPLAT_SIZE, this.host.getAspect());

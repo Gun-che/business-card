@@ -6,7 +6,7 @@
 }
 
 @if (game.phase() === 'playing' && game.hint().text; as text) {
-  <div [@showHide] class="hint regular-text" [class.hint-flash]="game.hintFlash()">
+  <div [@showHide] class="hint regular-text" [class.hint-flash]="game.hintFlash()" [class.hint-bottom]="game.level() >= 10">
     @if (game.hintFlash()) {
       <shaking-text [text]="text" class="accent-text"></shaking-text>
     } @else {

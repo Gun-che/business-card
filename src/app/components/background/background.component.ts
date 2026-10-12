@@ -5,6 +5,7 @@ import { GlitchService } from 'src/app/services/glitch.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { wordAtPoint } from 'src/app/utils/word-at-point';
 import { GameService } from 'src/app/services/game.service';
+import { SoundService } from 'src/app/services/sound.service';
 import type { SkullGame } from 'src/app/game/skull-game';
 import type { BossShowcase } from 'src/app/game/boss-showcase';
 import { Vector2 } from 'three';
@@ -23,6 +24,7 @@ export class BackgroundComponent implements AfterViewInit {
   private readonly destroyRef: DestroyRef = inject(DestroyRef);
   private readonly glitchService: GlitchService = inject(GlitchService);
   private readonly gameService: GameService = inject(GameService);
+  private readonly sound: SoundService = inject(SoundService);
   @ViewChild('background') public backgroundRef: Nullable<ElementRef<HTMLElement>>;
   private destroyed = false;
 
@@ -143,8 +145,16 @@ export class BackgroundComponent implements AfterViewInit {
           getTunnelCenter: background.getTunnelCenter,
           addFrameCallback: background.addFrameCallback,
           onStatus: (level, timeLeft, hint) => this.ngZone.run(() => this.gameService.setStatus(level, timeLeft, hint)),
-          onDeath: () => this.ngZone.run(() => this.gameService.die()),
-          onWin: () => this.ngZone.run(() => this.gameService.win()),
+          onDeath: () => {
+            this.sound.death();
+            this.ngZone.run(() => this.gameService.die());
+          },
+          onWin: () => {
+            this.sound.win();
+            this.ngZone.run(() => this.gameService.win());
+          },
+          onHit: () => this.sound.hit(),
+          onExplode: () => this.sound.explode(),
           glitchWave: (x, y) => triggerLocalGlitch({ x, y }),
           glitchStrong: triggerStrongGlitch,
           glitch: triggerGlitch,
