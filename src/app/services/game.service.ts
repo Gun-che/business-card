@@ -1,7 +1,7 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { AchievementService } from 'src/app/services/achievement.service';
 import { Observable, Subject } from 'rxjs';
-import { Hint } from 'src/app/game/levels';
+import { Hint, LEVEL_DURATION } from 'src/app/game/levels';
 
 export type GamePhase = 'idle' | 'playing' | 'dead' | 'won';
 
@@ -25,13 +25,14 @@ export class GameService {
   // Строка «Don't press Z» появляется после первого нажатия F
   public readonly hintVisible = signal(false);
   public readonly level = signal(1);
-  public readonly timeLeft = signal(30);
+  public readonly timeLeft = signal(LEVEL_DURATION);
   public readonly hint = signal<Hint>({ text: '', accent: '' });
   // Правило сменилось (число нажатий) — подсказка подсвечивается и трясётся
   public readonly hintFlash = signal(false);
   // Витрина босса по клику на бейдж: интерфейс на это время прячется
   public readonly showcase = signal(false);
   private hintFlashTimer: ReturnType<typeof setTimeout> | null = null;
+  private winTimer: ReturnType<typeof setTimeout> | null = null;
 
   private readonly sceneRequestSubject = new Subject<GameSceneRequest>();
   public readonly sceneRequest$: Observable<GameSceneRequest> = this.sceneRequestSubject.asObservable();
@@ -56,7 +57,9 @@ export class GameService {
     }
     this.phase.set('won');
     this.achievements.unlock('dungeonMaster');
-    setTimeout(() => {
+    this.clearWinTimer();
+    this.winTimer = setTimeout(() => {
+      this.winTimer = null;
       if (this.phase() === 'won') {
         this.leave();
       }
@@ -80,12 +83,15 @@ export class GameService {
   }
 
   public start(): void {
-    if (this.phase() !== 'idle') {
+    // Во время витрины босса игру не запускаем: витрина по окончании включает эффекты клика обратно
+    if (this.phase() !== 'idle' || this.showcase()) {
       return;
     }
     this.phase.set('playing');
     this.level.set(1);
-    this.timeLeft.set(30);
+    this.timeLeft.set(LEVEL_DURATION);
+    // Подсказка прошлой партии не должна мелькнуть, пока грузится движок
+    this.hint.set({ text: '', accent: '' });
     this.sceneRequestSubject.next('enter');
   }
 
@@ -95,7 +101,7 @@ export class GameService {
     }
     this.phase.set('playing');
     this.level.set(1);
-    this.timeLeft.set(30);
+    this.timeLeft.set(LEVEL_DURATION);
     this.sceneRequestSubject.next('retry');
   }
 
@@ -122,7 +128,16 @@ export class GameService {
     if (this.phase() === 'idle') {
       return;
     }
+    this.clearWinTimer();
     this.phase.set('idle');
+    this.hintFlash.set(false);
     this.sceneRequestSubject.next('restore');
+  }
+
+  private clearWinTimer(): void {
+    if (this.winTimer !== null) {
+      clearTimeout(this.winTimer);
+      this.winTimer = null;
+    }
   }
 }

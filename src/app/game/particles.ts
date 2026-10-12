@@ -1,4 +1,4 @@
-import { Color, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, Scene } from 'three';
+import { Color, Group, InstancedMesh, Mesh, MeshBasicMaterial, Object3D, PlaneGeometry, Scene } from 'three';
 
 interface Particle {
   x: number;
@@ -62,7 +62,6 @@ export class ParticleSystem {
   private readonly drips: Drip[] = [];
   private readonly parent: Group;
   private readonly dummy = new Object3D();
-  private readonly hidden = new Matrix4().makeScale(0, 0, 0);
   private readonly swapColor = new Color();
 
   constructor(private readonly scene: Scene, parent: Group) {
@@ -186,10 +185,8 @@ export class ParticleSystem {
       this.dummy.updateMatrix();
       this.mesh.setMatrixAt(i, this.dummy.matrix);
     });
-    for (let i = this.particles.length; i < this.mesh.count; i++) {
-      this.mesh.setMatrixAt(i, this.hidden);
-    }
-    this.mesh.count = Math.max(this.mesh.count, this.particles.length);
+    // Рисуем ровно живые частицы: после крупного взрыва не гоняем 512 пустых матриц каждый кадр
+    this.mesh.count = this.particles.length;
     this.mesh.instanceMatrix.needsUpdate = true;
     if (this.mesh.instanceColor) {
       this.mesh.instanceColor.needsUpdate = true;

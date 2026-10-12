@@ -4,12 +4,11 @@ import { BackgroundScene } from 'src/app/three/scenes/background-scene.model';
 import { GlitchService } from 'src/app/services/glitch.service';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { wordAtPoint } from 'src/app/utils/word-at-point';
-import { GameService } from 'src/app/services/game.service';
+import { GameInput, GameSceneRequest, GameService } from 'src/app/services/game.service';
 import { SoundService } from 'src/app/services/sound.service';
+import { LoadingService } from 'src/app/services/loading.service';
 import type { SkullGame } from 'src/app/game/skull-game';
 import type { BossShowcase } from 'src/app/game/boss-showcase';
-import { Vector2 } from 'three';
-
 
 @Component({
   selector: 'background',
@@ -23,12 +22,13 @@ export class BackgroundComponent implements AfterViewInit {
   private readonly ngZone: NgZone = inject(NgZone);
   private readonly destroyRef: DestroyRef = inject(DestroyRef);
   private readonly glitchService: GlitchService = inject(GlitchService);
-  private readonly gameService: GameService = inject(GameService);
+  public readonly gameService: GameService = inject(GameService);
   private readonly sound: SoundService = inject(SoundService);
+  private readonly loading: LoadingService = inject(LoadingService);
   @ViewChild('background') public backgroundRef: Nullable<ElementRef<HTMLElement>>;
   private destroyed = false;
 
-  // Режим примерки фонов: ?bg=<name>, переключение стрелками ← →
+  // Подпись текущего фона и переключение стрелками ← →; ?bg=<name> задаёт стартовую сцену
   public readonly previewScene = signal<Nullable<BackgroundScene>>(null);
   public switchScene: (step: number) => void = () => {};
 
@@ -42,11 +42,25 @@ export class BackgroundComponent implements AfterViewInit {
   }
 
   private async initBackground() {
+    // Запросы игры могут прийти, пока three.js ещё грузится (быстрое F → Z):
+    // подписываемся сразу и копим их, а после загрузки обрабатываем по порядку
+    let handleRequest: ((request: GameSceneRequest) => void) | null = null;
+    const pendingRequests: GameSceneRequest[] = [];
+    this.gameService.sceneRequest$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(request => {
+      if (handleRequest) {
+        handleRequest(request);
+      } else {
+        pendingRequests.push(request);
+      }
+    });
+    let handleInput: (input: GameInput) => void = () => {};
+    this.gameService.input$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(input => handleInput(input));
+
     // three.js — основная часть бандла: грузим отдельным чанком, чтобы не блокировать первую отрисовку
-    const [{ drawBackground }, { backgroundScenes }] = await Promise.all([
+    const [{ drawBackground }, { backgroundScenes }] = await this.loading.track('background', Promise.all([
       import('src/app/three/draw-background'),
       import('src/app/three/scenes')
-    ]);
+    ]));
     if (this.destroyed) {
       return;
     }
@@ -72,6 +86,21 @@ export class BackgroundComponent implements AfterViewInit {
     this.destroyRef.onDestroy(dispose);
     this.glitchService.burst$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(triggerStrongGlitch);
 
+    // Игра идёт на сцене Holo glitch; после выхода возвращаем сцену, которая была до игры
+    const gameSceneIndex = backgroundScenes.findIndex(scene => scene.name === 'holo');
+    const loadGame = () => import('src/app/game/skull-game');
+
+    // Индикатор горит, пока компилируется шейдер первой сцены. Затем, пока пользователь читает визитку,
+    // прогреваем шейдер игровой сцены и тянем чанк игры — к нажатию Z всё уже готово, без фриза
+    this.loading.track('background', background.ready).then(() => {
+      if (this.destroyed) {
+        return;
+      }
+      background.prewarmScene(backgroundScenes[index]);
+      background.prewarmScene(backgroundScenes[gameSceneIndex]);
+      loadGame().catch(() => {});
+    });
+
     // Клик по тексту — слово проявляется на фоне в глитч-эффекте (вне игры)
     const onClick = (event: MouseEvent) => {
       if (this.gameService.phase() !== 'idle') {
@@ -85,8 +114,6 @@ export class BackgroundComponent implements AfterViewInit {
     document.addEventListener('click', onClick);
     this.destroyRef.onDestroy(() => document.removeEventListener('click', onClick));
 
-    // Игра идёт на сцене Holo glitch; после выхода возвращаем сцену, которая была до игры
-    const gameSceneIndex = backgroundScenes.findIndex(scene => scene.name === 'holo');
     let sceneBeforeGame = index;
     let game: SkullGame | null = null;
     const stopGame = () => {
@@ -103,7 +130,7 @@ export class BackgroundComponent implements AfterViewInit {
     };
     this.destroyRef.onDestroy(stopShowcase);
     const runShowcase = async () => {
-      const { BossShowcase } = await import('src/app/game/boss-showcase');
+      const { BossShowcase } = await this.loading.track('showcase', import('src/app/game/boss-showcase'));
       if (this.destroyed) {
         return;
       }
@@ -124,45 +151,61 @@ export class BackgroundComponent implements AfterViewInit {
       showcase.start();
     };
 
-    this.gameService.sceneRequest$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(async request => {
-      if (request === 'showcase') {
-        runShowcase();
+    const startGame = async () => {
+      sceneBeforeGame = index;
+      index = gameSceneIndex;
+      switchScene(backgroundScenes[index], showLabel);
+      // Чанк игры и шейдер сцены обычно уже прогреты; если нет — на это время горит «Loading...»
+      const [{ SkullGame }] = await this.loading.track('game', Promise.all([
+        loadGame(),
+        background.prewarmScene(backgroundScenes[index])
+      ]));
+      if (this.destroyed || this.gameService.phase() !== 'playing') {
         return;
       }
-      if (request === 'enter') {
-        sceneBeforeGame = index;
-        index = gameSceneIndex;
-        switchScene(backgroundScenes[index], showLabel);
-        // Движок грузится лениво, вместе с three.js он уже в кэше
-        const { SkullGame } = await import('src/app/game/skull-game');
-        if (this.gameService.phase() !== 'playing') {
-          return;
-        }
-        stopGame();
-        game = new SkullGame({
-          scene: background.scene,
-          getAspect: background.getAspect,
-          getTunnelCenter: background.getTunnelCenter,
-          addFrameCallback: background.addFrameCallback,
-          onStatus: (level, timeLeft, hint) => this.ngZone.run(() => this.gameService.setStatus(level, timeLeft, hint)),
-          onDeath: () => {
-            this.sound.death();
-            this.ngZone.run(() => this.gameService.die());
-          },
-          onWin: () => {
-            this.sound.win();
-            this.ngZone.run(() => this.gameService.win());
-          },
-          onHit: () => this.sound.hit(),
-          onExplode: () => this.sound.explode(),
-          glitchWave: (x, y) => triggerLocalGlitch({ x, y }),
-          glitchStrong: triggerStrongGlitch,
-          glitch: triggerGlitch,
-          setTravelSpeed: background.setTravelSpeed
-        });
-        background.setClickEffectsEnabled(false);
-        background.setGameMode(true);
-        game.start(startLevel);
+      stopGame();
+      game = new SkullGame({
+        scene: background.scene,
+        getAspect: background.getAspect,
+        getTunnelCenter: background.getTunnelCenter,
+        addFrameCallback: background.addFrameCallback,
+        onStatus: (level, timeLeft, hint) => this.ngZone.run(() => this.gameService.setStatus(level, timeLeft, hint)),
+        onDeath: () => {
+          this.sound.death();
+          this.ngZone.run(() => this.gameService.die());
+        },
+        onWin: () => {
+          this.sound.win();
+          this.ngZone.run(() => this.gameService.win());
+        },
+        onHit: () => this.sound.hit(),
+        onExplode: () => this.sound.explode(),
+        glitchWave: (x, y) => triggerLocalGlitch({ x, y }),
+        glitchStrong: triggerStrongGlitch,
+        glitch: triggerGlitch,
+        setTravelSpeed: background.setTravelSpeed
+      });
+      background.setClickEffectsEnabled(false);
+      background.setGameMode(true);
+      game.start(startLevel);
+    };
+
+    const showLabel = () => {
+      this.ngZone.run(() => this.previewScene.set(backgroundScenes[index]));
+    };
+    // Выбранный вручную фон запоминаем в адресе, чтобы ссылкой можно было поделиться
+    const showLabelAndUrl = () => {
+      showLabel();
+      const url = new URL(window.location.href);
+      url.searchParams.set('bg', backgroundScenes[index].name);
+      window.history.replaceState(null, '', url);
+    };
+
+    handleRequest = request => {
+      if (request === 'showcase') {
+        runShowcase();
+      } else if (request === 'enter') {
+        startGame();
       } else if (request === 'retry') {
         game?.start(startLevel);
       } else {
@@ -173,33 +216,24 @@ export class BackgroundComponent implements AfterViewInit {
         index = sceneBeforeGame;
         switchScene(backgroundScenes[index], showLabel);
       }
-    });
+    };
+    pendingRequests.splice(0).forEach(handleRequest);
 
-    this.gameService.input$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(input => {
+    handleInput = input => {
       if (input.type === 'letter') {
         game?.hitLetter(input.letter);
       } else {
         game?.hitAt(input.x, input.y, window.innerHeight);
       }
-    });
-
-    const showLabel = () => {
-      if (previewName === null) {
-        return;
-      }
-      this.ngZone.run(() => this.previewScene.set(backgroundScenes[index]));
-      const url = new URL(window.location.href);
-      url.searchParams.set('bg', backgroundScenes[index].name);
-      window.history.replaceState(null, '', url);
     };
 
-    if (previewName === null) {
-      return;
-    }
-
     this.switchScene = (step: number) => {
+      // Во время игры сцену не трогаем: после выхода фон вернётся на сцену до игры
+      if (this.gameService.phase() !== 'idle') {
+        return;
+      }
       index = (index + step + backgroundScenes.length) % backgroundScenes.length;
-      switchScene(backgroundScenes[index], showLabel);
+      switchScene(backgroundScenes[index], showLabelAndUrl);
     };
 
     const onKeydown = (event: KeyboardEvent) => {

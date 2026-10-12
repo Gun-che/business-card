@@ -249,7 +249,7 @@ export class SkullGame {
     const aspect = this.host.getAspect();
     this.particles.update(dt, aspect);
     if (this.frozen) {
-      // На экране смерти кровь понемногу продолжает появляться
+      // На экранах смерти и победы кровь понемногу продолжает появляться
       this.bloodAccumulator += dt * BLOOD_PER_SECOND;
       const add = Math.min(Math.floor(this.bloodAccumulator), BLOOD_MAX - this.bloodCount);
       if (add > 0) {
@@ -264,8 +264,6 @@ export class SkullGame {
       return;
     }
 
-    const level = LEVELS[this.levelIndex];
-
     this.levelTime += dt;
     if (this.levelTime >= LEVEL_DURATION) {
       this.levelTime -= LEVEL_DURATION;
@@ -279,6 +277,8 @@ export class SkullGame {
       this.host.setTravelSpeed(1 + this.levelIndex * TRAVEL_SPEED_PER_LEVEL);
     }
 
+    // Параметры берём после возможной смены уровня, чтобы на её кадре не спавнить по старым
+    const level = LEVELS[this.levelIndex];
     this.sinceSpawn += dt;
     if (this.sinceSpawn >= level.spawnInterval && this.skulls.length < level.maxActive) {
       this.spawn(level.flightTime, level.hits);

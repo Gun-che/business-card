@@ -17,5 +17,7 @@ export interface ThreeModel {
     elapsed: number
   },
   options: ThreeParamsModel,
+  // Шейдеры сцены скомпилированы, цикл кадров запущен
+  ready: Promise<void>,
   dispose: () => void
 }

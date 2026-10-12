@@ -1,12 +1,9 @@
 <div class="container">
-  @if (loading()) {
-    <div [@showHide] class="loading header-text">
-      <shaking-text class="text" text="Loading..."></shaking-text>
-    </div>
-  } @else if (game.phase() === 'idle' && !game.showcase()) {
-    <div [@showHide] class="main-grid">
+  <!-- Визитка не удаляется из DOM на время игры, а только прячется: иначе логотип заново декодируется и мигает -->
+  @if (ready()) {
+    <div [@showHideState]="visible() ? 'shown' : 'hidden'" class="main-grid">
       <div class="logo" (click)="glitch()">
-        <img [attr.src]="logoUrl" alt="Vanya Goncharov" draggable="false">
+        <img [attr.src]="logoUrl" alt="Vanya Goncharov" draggable="false" fetchpriority="high">
       </div>
 
       <div class="header-text main-header">

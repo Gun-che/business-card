@@ -1,9 +1,10 @@
-import { ChangeDetectionStrategy, Component, HostListener, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, HostListener, inject, OnInit, signal } from '@angular/core';
 import { ShakingTextComponent } from 'src/app/components/shaking-text/shaking-text.component';
 import { MusicService } from 'src/app/services/music.service';
 import { GlitchService } from 'src/app/services/glitch.service';
 import { GameService } from 'src/app/services/game.service';
-import { showHide } from 'src/app/animations/show-hide.animation';
+import { showHide, showHideState } from 'src/app/animations/show-hide.animation';
+import { LoadingService } from 'src/app/services/loading.service';
 
 @Component({
   selector: 'business-card',
@@ -12,14 +13,20 @@ import { showHide } from 'src/app/animations/show-hide.animation';
   templateUrl: './business-card.component.html',
   styleUrl: './business-card.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  animations: [showHide]
+  animations: [showHide, showHideState]
 })
 export class BusinessCardComponent implements OnInit {
   private readonly musicService: MusicService = inject(MusicService);
   private readonly glitchService: GlitchService = inject(GlitchService);
+  private readonly loadingService: LoadingService = inject(LoadingService);
   public readonly game: GameService = inject(GameService);
-  public readonly loading = signal(true);
+  // Логотип загружен и декодирован — визитку можно показывать
+  public readonly ready = signal(false);
+  // Во время игры и витрины босса визитка спрятана
+  public readonly visible = computed(() => this.game.phase() === 'idle' && !this.game.showcase());
   public readonly logoUrl = 'assets/images/vg4.webp';
+  // Держим ссылку на декодированную картинку, чтобы браузер не выкидывал её из кэша декодирования
+  private readonly logo = new Image();
 
   public ngOnInit(): void {
     this.musicService.setAudio('assets/music/new-slaves.mp3');
@@ -58,12 +65,10 @@ export class BusinessCardComponent implements OnInit {
   }
 
   private observeLoading() {
-    const img = new Image();
-    img.src = this.logoUrl;
+    this.logo.src = this.logoUrl;
 
     // decode() дожидается не только загрузки, но и декодирования — без рывка при появлении
-    img.decode()
-      .catch(() => {})
-      .finally(() => this.loading.set(false));
+    this.loadingService.track('logo', this.logo.decode().catch(() => {}))
+      .then(() => this.ready.set(true));
   }
 }

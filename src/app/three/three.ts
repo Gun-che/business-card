@@ -53,6 +53,7 @@ export function three(params: ThreeParamsModel): ThreeModel {
       elapsed: 0
     },
     options,
+    ready: Promise.resolve(),
     dispose
   };
 
@@ -61,6 +62,7 @@ export function three(params: ThreeParamsModel): ThreeModel {
   let frameSamples = 0;
   let frameTimeSum = 0;
   let resizeObserver: ResizeObserver | null = null;
+  let disposed = false;
 
   init();
 
@@ -77,6 +79,7 @@ export function three(params: ThreeParamsModel): ThreeModel {
       throw new Error('Missing parameter : el or canvas is required');
     }
 
+    canvas.style.visibility = 'hidden';
     options.init?.(three);
 
     three.renderer = new WebGLRenderer({
@@ -114,10 +117,23 @@ export function three(params: ThreeParamsModel): ThreeModel {
       three.renderer.render(three.scene, three.camera);
     });
 
-    frameId = requestAnimationFrame(timestamp => {
-      three.clock.startTime = three.clock.time = timestamp;
-      frameId = requestAnimationFrame(animate);
-    });
+    // Шейдеры компилируем до первого кадра и, где есть KHR_parallel_shader_compile, без блокировки потока:
+    // иначе тяжёлый фрагментный шейдер компилируется синхронно в первом render() и страница подвисает
+    three.ready = three.renderer.compileAsync(three.scene, three.camera)
+      .catch(() => {})
+      .then(() => {
+        if (disposed) {
+          return;
+        }
+        frameId = requestAnimationFrame(timestamp => {
+          three.clock.startTime = three.clock.time = timestamp;
+          // До первого кадра канвас пустой (чёрный) — показываем его вместе с первым кадром
+          options.beforeRender(three);
+          render(three);
+          canvas.style.visibility = '';
+          frameId = requestAnimationFrame(animate);
+        });
+      });
   }
 
   function initPointer() {
@@ -195,6 +211,7 @@ export function three(params: ThreeParamsModel): ThreeModel {
   }
 
   function dispose() {
+    disposed = true;
     cancelAnimationFrame(frameId);
     window.removeEventListener('resize', resize);
     resizeObserver?.disconnect();

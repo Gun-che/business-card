@@ -1,4 +1,4 @@
-import { CanvasTexture, Color, Mesh, NearestFilter, OrthographicCamera, PlaneGeometry, ShaderMaterial, SplineCurve, Texture, Vector2, Vector3, Vector4 } from 'three';
+import { CanvasTexture, Color, Mesh, NearestFilter, OrthographicCamera, PlaneGeometry, Scene, ShaderMaterial, SplineCurve, Texture, Vector2, Vector3, Vector4 } from 'three';
 import { three } from './three';
 import { NeonCursorParams } from 'src/app/types/neon-cursor-params';
 import { ThreeParamsModel } from 'src/app/types/three-params.model';
@@ -99,6 +99,8 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
   const frameCallbacks = new Set<(dt: number, time: number) => void>();
   let pointerMoved = false;
   let material: ShaderMaterial;
+  const warmGeometry = new PlaneGeometry(2, 2);
+  let disposed = false;
 
   const threeConfig: ThreeParamsModel = {};
   const keys = ['el', 'eventsEl', 'canvas', 'width', 'height', 'resize'] as const;
@@ -240,18 +242,46 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
     material.needsUpdate = true;
   }
 
-  // Сильный глитч на границе сцен: вспышка на старой, подмена на пике, затухание уже на новой
+  // Прогрев шейдеров сцен: компилируем программу заранее на копии материала и держим копию живой —
+  // three.js берёт программу из кэша по исходнику, и подмена шейдера в setScene проходит без фриза
+  const warmScene = new Scene();
+  const warmed = new Map<string, Promise<void>>();
+  function prewarmScene(scene: BackgroundScene): Promise<void> {
+    const cached = warmed.get(scene.name);
+    if (cached) {
+      return cached;
+    }
+    const copy = material.clone();
+    copy.fragmentShader = composeFragmentShader(scene);
+    const mesh = new Mesh(warmGeometry, copy);
+    warmScene.add(mesh);
+    const promise = instance.renderer.compileAsync(mesh, instance.camera, warmScene)
+      .then(() => {}, () => {});
+    warmed.set(scene.name, promise);
+    return promise;
+  }
+
+  // Сильный глитч на границе сцен: вспышка на старой, подмена на пике, затухание уже на новой.
+  // Если шейдер новой сцены ещё компилируется — подменяем, когда он готов
   let switchTimer: ReturnType<typeof setTimeout> | null = null;
+  let switchId = 0;
   function switchScene(scene: BackgroundScene, onSwitched?: () => void) {
     if (switchTimer !== null) {
       clearTimeout(switchTimer);
     }
+    const id = ++switchId;
+    const compiled = prewarmScene(scene);
     triggerStrongGlitch();
     switchTimer = setTimeout(() => {
       switchTimer = null;
-      setScene(scene);
-      triggerStrongGlitch();
-      onSwitched?.();
+      compiled.then(() => {
+        if (id !== switchId || disposed) {
+          return;
+        }
+        setScene(scene);
+        triggerStrongGlitch();
+        onSwitched?.();
+      });
     }, SCENE_SWITCH_DELAY_MS);
   }
 
@@ -351,10 +381,13 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
   }
 
   function dispose() {
+    disposed = true;
     frameCallbacks.clear();
     if (switchTimer !== null) {
       clearTimeout(switchTimer);
     }
+    warmScene.traverse(object => ((object as Mesh).material as ShaderMaterial | undefined)?.dispose());
+    warmGeometry.dispose();
     instance.dispose();
   }
 
@@ -362,6 +395,8 @@ export function drawBackground(params: NeonCursorParams, backgroundScene: Backgr
     config,
     setScene,
     switchScene,
+    prewarmScene,
+    ready: instance.ready,
     triggerStrongGlitch,
     triggerLocalGlitch,
     setClickEffectsEnabled: (enabled: boolean) => clickEffectsEnabled = enabled,

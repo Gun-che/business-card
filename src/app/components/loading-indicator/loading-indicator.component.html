@@ -1,0 +1,5 @@
+@if (loading.busy()) {
+  <div [@showHide] class="loading" [class.header-text]="centered()" [class.corner]="!centered()" [class.regular-text]="!centered()">
+    <shaking-text class="text" text="Loading..."></shaking-text>
+  </div>
+}
