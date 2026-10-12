@@ -38,6 +38,18 @@
   }
 }
 
+// Номер уровня в начале уровня — крупно посреди экрана, сквозь него можно тапать
+.level-banner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  line-height: 3.6rem;
+  pointer-events: none;
+}
+
 // На боссе буквы занимают середину экрана — подсказка уходит к нижнему краю
 .hint-bottom {
   top: auto;

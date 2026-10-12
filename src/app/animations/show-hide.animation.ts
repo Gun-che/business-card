@@ -11,6 +11,15 @@ export const showHide = trigger('showHide', [
   transition(':leave', leaveSteps)
 ]);
 
+// Номер уровня посреди экрана: быстро проявляется с лёгким увеличением и быстро гаснет, чтобы не мешать игре
+export const levelBanner = trigger('levelBanner', [
+  transition(':enter', [
+    style({ transform: 'scale(0.7)', opacity: 0 }),
+    animate('150ms ease-out', style({ transform: 'scale(1)', opacity: 1 }))
+  ]),
+  transition(':leave', [animate('250ms ease-in', style({ transform: 'scale(1.15)', opacity: 0 }))])
+]);
+
 // То же появление и уход, но без удаления из DOM: [@showHideState]="'shown' | 'hidden'".
 // Нужен, когда пересоздание дорого — например, картинка заново декодируется и мигает
 export const showHideState = trigger('showHideState', [

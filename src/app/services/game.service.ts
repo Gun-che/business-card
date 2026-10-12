@@ -6,6 +6,8 @@ import { Hint, LEVEL_DURATION } from 'src/app/game/levels';
 export type GamePhase = 'idle' | 'playing' | 'dead' | 'won';
 
 const HINT_FLASH_MS = 2500;
+// Сколько висит надпись с номером уровня посреди экрана в начале уровня
+const LEVEL_BANNER_MS = 1300;
 // Сколько показывать экран победы перед возвратом на визитку
 const WIN_SCREEN_MS = 4000;
 
@@ -32,6 +34,11 @@ export class GameService {
   // Витрина босса по клику на бейдж: интерфейс на это время прячется
   public readonly showcase = signal(false);
   private hintFlashTimer: ReturnType<typeof setTimeout> | null = null;
+  // Начался новый уровень — его номер коротко показывается посреди экрана
+  public readonly levelBanner = signal(false);
+  private levelBannerTimer: ReturnType<typeof setTimeout> | null = null;
+  // Уровень, о начале которого уже объявили; 0 — ещё ни о каком (новая партия)
+  private announcedLevel = 0;
   private winTimer: ReturnType<typeof setTimeout> | null = null;
 
   private readonly sceneRequestSubject = new Subject<GameSceneRequest>();
@@ -90,6 +97,7 @@ export class GameService {
     this.phase.set('playing');
     this.level.set(1);
     this.timeLeft.set(LEVEL_DURATION);
+    this.announcedLevel = 0;
     // Подсказка прошлой партии не должна мелькнуть, пока грузится движок
     this.hint.set({ text: '', accent: '' });
     this.sceneRequestSubject.next('enter');
@@ -102,6 +110,7 @@ export class GameService {
     this.phase.set('playing');
     this.level.set(1);
     this.timeLeft.set(LEVEL_DURATION);
+    this.announcedLevel = 0;
     this.sceneRequestSubject.next('retry');
   }
 
@@ -114,6 +123,18 @@ export class GameService {
     if (level > 1 && (previous.text !== hint.text || previous.accent !== hint.accent)) {
       this.flashHint();
     }
+    if (level !== this.announcedLevel) {
+      this.announcedLevel = level;
+      this.showLevelBanner();
+    }
+  }
+
+  private showLevelBanner(): void {
+    this.levelBanner.set(true);
+    if (this.levelBannerTimer !== null) {
+      clearTimeout(this.levelBannerTimer);
+    }
+    this.levelBannerTimer = setTimeout(() => this.levelBanner.set(false), LEVEL_BANNER_MS);
   }
 
   private flashHint(): void {
@@ -131,6 +152,7 @@ export class GameService {
     this.clearWinTimer();
     this.phase.set('idle');
     this.hintFlash.set(false);
+    this.levelBanner.set(false);
     this.sceneRequestSubject.next('restore');
   }
 

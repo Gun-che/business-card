@@ -25,6 +25,8 @@ export interface SkullGameHost {
   glitch: (strength: number) => void;
   // Скорость полёта по туннелю (1 — как вне игры)
   setTravelSpeed: (speed: number) => void;
+  // Во сколько раз чаще появляются черепа и во сколько раз больше их одновременно (на тач-устройствах тапать легче — 2)
+  spawnMultiplier: number;
 }
 
 interface Skull {
@@ -280,7 +282,8 @@ export class SkullGame {
     // Параметры берём после возможной смены уровня, чтобы на её кадре не спавнить по старым
     const level = LEVELS[this.levelIndex];
     this.sinceSpawn += dt;
-    if (this.sinceSpawn >= level.spawnInterval && this.skulls.length < level.maxActive) {
+    const multiplier = this.host.spawnMultiplier;
+    if (this.sinceSpawn >= level.spawnInterval / multiplier && this.skulls.length < level.maxActive * multiplier) {
       this.spawn(level.flightTime, level.hits);
       this.sinceSpawn = 0;
     }

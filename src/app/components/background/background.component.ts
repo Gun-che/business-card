@@ -10,6 +10,9 @@ import { LoadingService } from 'src/app/services/loading.service';
 import type { SkullGame } from 'src/app/game/skull-game';
 import type { BossShowcase } from 'src/app/game/boss-showcase';
 
+// На тач-устройствах черепа появляются вдвое чаще и их вдвое больше одновременно
+const TOUCH_SPAWN_MULTIPLIER = 2;
+
 @Component({
   selector: 'background',
   standalone: true,
@@ -183,7 +186,9 @@ export class BackgroundComponent implements AfterViewInit {
         glitchWave: (x, y) => triggerLocalGlitch({ x, y }),
         glitchStrong: triggerStrongGlitch,
         glitch: triggerGlitch,
-        setTravelSpeed: background.setTravelSpeed
+        setTravelSpeed: background.setTravelSpeed,
+        // Основной указатель — палец: тапать по черепам проще, чем жать клавиши, поэтому черепов вдвое больше
+        spawnMultiplier: window.matchMedia('(pointer: coarse)').matches ? TOUCH_SPAWN_MULTIPLIER : 1
       });
       background.setClickEffectsEnabled(false);
       background.setGameMode(true);
